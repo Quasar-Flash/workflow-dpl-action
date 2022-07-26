@@ -24,7 +24,7 @@ on:
       - master
 jobs:
   Deploying:
-    uses: Quasar-Flash/workflow-dpl-action/.github/workflows/deployment.yml@dev
+    uses: Quasar-Flash/workflow-dpl-action/.github/workflows/deployment.yml@master
     with:
       environment: production
       environment_url: https://url.com
