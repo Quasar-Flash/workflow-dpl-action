@@ -9,9 +9,9 @@ on:
         required: true
         type: string
       release:
-        default: false
+        default: 'false'
         required: false
-        type: boolean
+        type: string
     secrets:
       AWS_ACCESS_KEY_ID:
         required: true
@@ -70,7 +70,7 @@ jobs:
           sed -i '/image\:/c\        image: ${{ steps.vars.outputs.ecr_tag }}' deployment/${{ inputs.environment }}.yml
           kubectl apply -f deployment/${{ inputs.environment }}.yml
       - name: Create a GitHub release
-        if: ${{ inputs.release == true }}
+        if: ${{ inputs.release == 'true' }}
         uses: ncipollo/release-action@v1
         with:
           tag: v${{ steps.vars.outputs.project_version }}

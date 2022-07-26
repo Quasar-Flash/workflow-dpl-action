@@ -6,7 +6,7 @@ Deployment workflow for AWS EKS.
 
 Set the required secrets:
 
-```
+```sh
 AWS_ACCESS_KEY_ID:
 AWS_SECRET_ACCESS_KEY:
 CLUSTER_NAME:
@@ -15,7 +15,7 @@ ECR_REGISTRY:
 
 Create a workflow inside your project and import this:
 
-```
+```yml
 name: Deploy Production
 on:
   workflow_dispatch:
@@ -33,17 +33,20 @@ jobs:
 ```
 
 Set a project version at the file `.version` with only the numbers:
-```
+
+```bash
 touch .version && echo "1.0.0" > .version
 ```
 
 Put the deployment AWS documents at the folder `/deployment`. The deployment file needs to have the same name as the environment, like:
-```
+
+```bash
 deployment/production.yml
 ```
 
 Create a `CHANGELOG.md` file following the pattern as described at [Keep a Changelog](https://github.com/olivierlacan/keep-a-changelog)
-```
+
+```md
 # Changelog
 
 All notable changes to this project will be documented in this file.

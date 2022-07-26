@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.1.0] - 2022-07-26
+
+### Added
+
+- Workflow to deploy ruby based apps to Heroku.
+
 ## [1.0.0] - 2022-07-25
 
 ### Added
