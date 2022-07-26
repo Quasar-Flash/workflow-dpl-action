@@ -1,0 +1,55 @@
+name: Deployment
+on:
+  workflow_call:
+    inputs:
+      environment:
+        required: true
+        type: string
+      environment_url:
+        required: true
+        type: string
+      release:
+        default: false
+        required: false
+        type: boolean
+    secrets:
+      HEROKU_API_KEY:
+        required: true
+jobs:
+  Deploying:
+    runs-on: ubuntu-latest
+    environment:
+      name: ${{ inputs.environment }}
+      url: ${{ inputs.environment_url }}
+    steps:
+      - uses: actions/checkout@v3
+      - name: Set environment variables
+        id: vars
+        run: echo ::set-output name=project_version::$(cat .version)
+      - name: Get Changelog Entry
+        id: changelog_reader
+        uses: mindsers/changelog-reader-action@v2.0.0
+        with:
+          validation_depth: 10
+          version: ${{ steps.vars.outputs.project_version }}
+          path: ./CHANGELOG.md
+      - uses: ruby/setup-ruby@v1.110.0
+        with:
+          ruby-version: '3.1.2'
+          bundler-cache: true
+      - name: deploy
+        run: |
+          gem install faraday -v 1.8.0
+          gem install dpl
+          dpl --provider=heroku --app=qflash-production --api-key=$${{ secrets.HEROKU_API_KEY }} --label=${{ steps.vars.outputs.project_version }}
+      - name: Create a GitHub release
+        if: ${{ inputs.release == 'true' }}
+        uses: ncipollo/release-action@v1
+        with:
+          tag: v${{ steps.vars.outputs.project_version }}
+          name: v${{ steps.vars.outputs.project_version }}
+          body: ${{ steps.changelog_reader.outputs.changes }}
+          prerelease: ${{ steps.changelog_reader.outputs.status == 'prereleased' }}
+          draft: ${{ steps.changelog_reader.outputs.status == 'unreleased' }}
+          allowUpdates: true
+          token: ${{ secrets.GITHUB_TOKEN }}
