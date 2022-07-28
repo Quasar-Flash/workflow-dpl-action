@@ -5,9 +5,18 @@ RUN apt-get update && \
     apt-get install -qy apt-utils && \
     apt-get install -qy locales && \
     apt-get install -qy curl && \
+    apt-get install -qy unzip && \
     curl -sSL https://get.docker.com/ | sh
 
 RUN update-locale LANG=C.UTF-8 LC_ALL=C.UTF-8
+
+RUN curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+
+RUN unzip awscliv2.zip
+
+RUN ./aws/install
+
+RUN rm awscliv2.zip
 
 RUN curl -LO https://dl.k8s.io/release/v1.22.2/bin/linux/amd64/kubectl
 
