@@ -24,6 +24,8 @@ on:
 jobs:
   Deploying:
     runs-on: ubuntu-latest
+    container:
+      image: public.ecr.aws/qflash/deployment-workflow:latest
     environment:
       name: ${{ inputs.environment }}
       url: ${{ inputs.environment_url }}
@@ -58,13 +60,7 @@ jobs:
           docker build -t "${{ steps.vars.outputs.ecr_tag }}" .
           docker push "${{ steps.vars.outputs.ecr_tag }}"
       - name: Install and configure kubeclt
-        run: |
-          curl -LO https://dl.k8s.io/release/v1.22.2/bin/linux/amd64/kubectl && \
-          curl -o /usr/local/bin/aws-iam-authenticator https://amazon-eks.s3-us-west-2.amazonaws.com/1.21.2/2021-07-05/bin/linux/amd64/aws-iam-authenticator && \
-          chmod +x /usr/local/bin/aws-iam-authenticator && \
-          chmod +x ./kubectl && \
-          mv ./kubectl /usr/local/bin/kubectl
-          aws eks update-kubeconfig --name "${{ secrets.CLUSTER_NAME }}"
+        run: aws eks update-kubeconfig --name "${{ secrets.CLUSTER_NAME }}"
       - name: Deploy to K8s
         run: |
           sed -i '/image\:/c\        image: ${{ steps.vars.outputs.ecr_tag }}' deployment/${{ inputs.environment }}.yml
