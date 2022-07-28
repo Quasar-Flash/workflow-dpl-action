@@ -2,6 +2,9 @@ name: Deployment
 on:
   workflow_call:
     inputs:
+      app_name:
+        required: true
+        type: string
       environment:
         required: true
         type: string
@@ -39,11 +42,12 @@ jobs:
           bundler-cache: true
       - name: deploy
         env:
+          APP_NAME: ${{ inputs.app_name }}
           HEROKU_API_KEY: ${{ secrets.HEROKU_API_KEY }}
         run: |
           gem install faraday -v 1.8.0
           gem install dpl
-          dpl --provider=heroku --app=qflash-production --api-key=$HEROKU_API_KEY --label=${{ steps.vars.outputs.project_version }}
+          dpl --provider=heroku --app=$APP_NAME --api-key=$HEROKU_API_KEY --label=${{ steps.vars.outputs.project_version }}
       - name: Create a GitHub release
         if: ${{ inputs.release == 'true' }}
         uses: ncipollo/release-action@v1
