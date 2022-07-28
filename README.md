@@ -65,3 +65,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Links to latest released version in previous versions.
 - "Why keep a changelog?" section.
 ```
+
+## Docker Image - Workflow
+
+- To build and run the workflow image: [DEPLOYING.md](DEPLOYING.md)
