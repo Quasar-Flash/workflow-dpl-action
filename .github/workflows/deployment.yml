@@ -23,7 +23,7 @@ on:
         required: true
 jobs:
   Deploying:
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     container:
       image: public.ecr.aws/qflash/deployment-workflow:latest
     environment:
