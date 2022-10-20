@@ -31,12 +31,12 @@ jobs:
         run: echo ::set-output name=project_version::$(cat .version)
       - name: Get Changelog Entry
         id: changelog_reader
-        uses: mindsers/changelog-reader-action@v2.0.0
+        uses: mindsers/changelog-reader-action@v2.2.0
         with:
           validation_depth: 10
           version: ${{ steps.vars.outputs.project_version }}
           path: ./CHANGELOG.md
-      - uses: ruby/setup-ruby@v1.110.0
+      - uses: ruby/setup-ruby@v1.118.0
         with:
           ruby-version: '3.1.2'
           bundler-cache: true
@@ -45,12 +45,11 @@ jobs:
           APP_NAME: ${{ inputs.app_name }}
           HEROKU_API_KEY: ${{ secrets.HEROKU_API_KEY }}
         run: |
-          gem install faraday -v 1.8.0
           gem install dpl
           dpl --provider=heroku --app=$APP_NAME --api-key=$HEROKU_API_KEY --label=${{ steps.vars.outputs.project_version }}
       - name: Create a GitHub release
         if: ${{ inputs.release == 'true' }}
-        uses: ncipollo/release-action@v1
+        uses: ncipollo/release-action@v1.11.1
         with:
           tag: v${{ steps.vars.outputs.project_version }}
           name: v${{ steps.vars.outputs.project_version }}

@@ -39,7 +39,7 @@ jobs:
           aws-region: us-east-1
       - name: Login to Amazon ECR
         id: login-ecr
-        uses: aws-actions/amazon-ecr-login@v1
+        uses: aws-actions/amazon-ecr-login@v1.5.2
       - name: Set environment variables
         id: vars
         run: |
@@ -50,7 +50,7 @@ jobs:
           echo ::set-output name=ecr_tag::${{ secrets.ECR_REGISTRY }}/${GITHUB_REPOSITORY#*\/}:${GITHUB_SHA}
       - name: Get Changelog Entry
         id: changelog_reader
-        uses: mindsers/changelog-reader-action@v2.0.0
+        uses: mindsers/changelog-reader-action@v2.2.0
         with:
           validation_depth: 10
           version: ${{ steps.vars.outputs.project_version }}
@@ -67,7 +67,7 @@ jobs:
           kubectl apply -f deployment/${{ inputs.environment }}.yml
       - name: Create a GitHub release
         if: ${{ inputs.release == 'true' }}
-        uses: ncipollo/release-action@v1
+        uses: ncipollo/release-action@v1.11.1
         with:
           tag: v${{ steps.vars.outputs.project_version }}
           name: v${{ steps.vars.outputs.project_version }}
