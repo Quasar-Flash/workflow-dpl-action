@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.3.0] - 2022-10-21
+
+### Added
+
+- Campos opcionais de locais do Dockefile e dos templates de deployment.
+
 ## [1.2.3] - 2022-10-19
 
 ### Changed
