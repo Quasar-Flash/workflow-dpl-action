@@ -2,6 +2,14 @@ name: Deployment
 on:
   workflow_call:
     inputs:
+      dockerfile_location:
+        required: false
+        type: string
+        default: '.'
+      templates_location:
+        required: false
+        type: string
+        default: 'deployment/'
       environment:
         required: true
         type: string
@@ -57,13 +65,13 @@ jobs:
           path: ./CHANGELOG.md
       - name: Build, tag, and push image to Amazon ECR
         run: |
-          docker build -t "${{ steps.vars.outputs.ecr_tag }}" .
+          docker build -t "${{ steps.vars.outputs.ecr_tag }}" ${{ inputs.dockerfile_location }}
           docker push "${{ steps.vars.outputs.ecr_tag }}"
       - name: Install and configure kubeclt
         run: aws eks update-kubeconfig --name "${{ secrets.CLUSTER_NAME }}"
       - name: Deploy to K8s
         run: |
-          sed -i '/image\:/c\        image: ${{ steps.vars.outputs.ecr_tag }}' deployment/${{ inputs.environment }}.yml
+          sed -i '/image\:/c\        image: ${{ steps.vars.outputs.ecr_tag }}' ${{ inputs.templates_location}}${{ inputs.environment }}.yml
           kubectl apply -f deployment/${{ inputs.environment }}.yml
       - name: Create a GitHub release
         if: ${{ inputs.release == 'true' }}
