@@ -50,12 +50,6 @@ jobs:
         uses: aws-actions/amazon-ecr-login@v1.5.2
       - name: Set environment variables
         id: vars
-        # run: |
-        #   echo ::set-output name=project_version::$(cat .version)
-        #   echo ::set-output name=sha::${GITHUB_SHA}
-        #   echo ::set-output name=repo_name::${GITHUB_REPOSITORY#*\/}
-        #   echo ::set-output name=ecr_registry::${{ secrets.ECR_REGISTRY }}
-        #   echo ::set-output name=ecr_tag::${{ secrets.ECR_REGISTRY }}/${GITHUB_REPOSITORY#*\/}:${GITHUB_SHA}
         run: |
           echo "project_version=$(cat .version)" >> $GITHUB_OUTPUT
           echo "sha=${GITHUB_SHA}" >> $GITHUB_OUTPUT
