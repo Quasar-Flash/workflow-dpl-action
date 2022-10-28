@@ -1,0 +1,95 @@
+name: Deployment
+on:
+  workflow_call:
+    inputs:
+      dockerfile_location:
+        required: false
+        type: string
+        default: '.'
+      templates_location:
+        required: false
+        type: string
+        default: 'deployment/'
+      environment:
+        required: true
+        type: string
+      environment_url:
+        required: true
+        type: string
+      release:
+        default: 'false'
+        required: false
+        type: string
+    secrets:
+      AWS_ACCESS_KEY_ID:
+        required: true
+      AWS_SECRET_ACCESS_KEY:
+        required: true
+      CLUSTER_NAME:
+        required: true
+      ECR_REGISTRY:
+        required: true
+jobs:
+  Deploying:
+    runs-on: self-hosted
+    container:
+      image: public.ecr.aws/qflash/deployment-workflow:latest
+    environment:
+      name: ${{ inputs.environment }}
+      url: ${{ inputs.environment_url }}
+    steps:
+      - uses: actions/checkout@v3
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID_DEVOPS }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY_DEVOPS }}
+          # aws-region: us-east-1
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v1.5.2
+      - name: Set environment variables
+        id: vars
+        run: |
+          echo "project_version=$(cat .version)" >> $GITHUB_OUTPUT
+          echo "sha=${GITHUB_SHA}" >> $GITHUB_OUTPUT
+          echo "repo_name=${GITHUB_REPOSITORY#*\/}" >> $GITHUB_OUTPUT
+          echo "ecr_registry=${{ secrets.ECR_REGISTRY_DEVOPS }}" >> $GITHUB_OUTPUT
+          echo "ecr_tag=${{ secrets.ECR_REGISTRY_DEVOPS }}/${GITHUB_REPOSITORY#*\/}:dev-${GITHUB_SHA}" >> $GITHUB_OUTPUT
+          echo "ecr_tag_latest=${{ secrets.ECR_REGISTRY_DEVOPS }}/${GITHUB_REPOSITORY#*\/}:dev-latest" >> $GITHUB_OUTPUT
+
+      - name: Get Changelog Entry
+        id: changelog_reader
+        uses: mindsers/changelog-reader-action@v2.2.0
+        with:
+          validation_depth: 10
+          version: ${{ steps.vars.outputs.project_version }}
+          path: ./CHANGELOG.md
+      - name: Build, tag, and push image to Amazon ECR
+        run: |
+          docker build -t "${{ steps.vars.outputs.ecr_tag }}" ${{ inputs.dockerfile_location }}
+          docker push "${{ steps.vars.outputs.ecr_tag }}"
+          docker tag "${{ steps.vars.outputs.ecr_tag }}" "${{ steps.vars.outputs.ecr_tag_latest }}"
+          docker push "${{ steps.vars.outputs.ecr_tag_latest }}"
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID_DEV }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY_DEV }}    
+      - name: Install and configure kubeclt
+        run: aws eks update-kubeconfig --name "${{ secrets.CLUSTER_NAME }}"
+      - name: Deploy to K8s
+        run: |
+          sed -i '/image\:/c\        image: ${{ steps.vars.outputs.ecr_tag }}' ${{ inputs.templates_location}}${{ inputs.environment }}.yml
+          kubectl apply -f deployment/${{ inputs.environment }}.yml
+      - name: Create a GitHub release
+        if: ${{ inputs.release == 'true' }}
+        uses: ncipollo/release-action@v1.11.1
+        with:
+          tag: v${{ steps.vars.outputs.project_version }}
+          name: v${{ steps.vars.outputs.project_version }}
+          body: ${{ steps.changelog_reader.outputs.changes }}
+          prerelease: ${{ steps.changelog_reader.outputs.status == 'prereleased' }}
+          draft: ${{ steps.changelog_reader.outputs.status == 'unreleased' }}
+          allowUpdates: true
+          token: ${{ secrets.GITHUB_TOKEN }}
