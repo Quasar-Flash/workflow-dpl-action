@@ -78,7 +78,7 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY_DEV }}
           aws-region: sa-east-1    
       - name: Install and configure kubeclt
-        run: aws eks update-kubeconfig --name "${{ secrets.CLUSTER_NAME }}"
+        run: aws eks update-kubeconfig --name "${{ secrets.CLUSTER_NAME_DEV }}"
       - name: Deploy to K8s
         run: |
           sed -i '/image\:/c\        image: ${{ steps.vars.outputs.ecr_tag }}' ${{ inputs.templates_location}}${{ inputs.environment }}.yml
