@@ -21,14 +21,19 @@ on:
         required: false
         type: string
     secrets:
-      AWS_ACCESS_KEY_ID:
+      AWS_ACCESS_KEY_ID_DEVOPS:
         required: true
-      AWS_SECRET_ACCESS_KEY:
+      AWS_SECRET_ACCESS_KEY_DEVOPS:
         required: true
-      CLUSTER_NAME:
+      AWS_ACCESS_KEY_ID_DEV:
         required: true
-      ECR_REGISTRY:
+      AWS_SECRET_ACCESS_KEY_DEV:
         required: true
+      CLUSTER_NAME_DEV:
+        required: true
+      ECR_REGISTRY_DEVOPS:
+        required: true  
+
 jobs:
   Deploying:
     runs-on: self-hosted
