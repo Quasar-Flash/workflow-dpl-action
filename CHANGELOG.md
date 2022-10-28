@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.4.0] - 2022-10-28
+
+### Added
+
+- Incluído novo template de workflow #4
+
 ## [1.3.0] - 2022-10-21
 
 ### Added
