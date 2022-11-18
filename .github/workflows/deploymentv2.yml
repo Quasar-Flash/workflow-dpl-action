@@ -102,3 +102,4 @@ jobs:
           draft: ${{ steps.changelog_reader.outputs.status == 'unreleased' }}
           allowUpdates: true
           token: ${{ secrets.GITHUB_TOKEN }}
+
