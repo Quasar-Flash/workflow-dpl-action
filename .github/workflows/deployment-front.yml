@@ -63,7 +63,7 @@ jobs:
         id: vars
         run: |
           touch .env
-          echo "${{ secrets.NEXT_PUBLIC_BASE_URL }}" > .env
+          echo "next_public_base_url=${{ secrets.NEXT_PUBLIC_BASE_URL }}" > .env
           echo "project_version=$(cat .version)" >> $GITHUB_OUTPUT
           echo "sha=${GITHUB_SHA}" >> $GITHUB_OUTPUT
           echo "repo_name=${GITHUB_REPOSITORY#*\/}" >> $GITHUB_OUTPUT
