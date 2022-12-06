@@ -62,15 +62,20 @@ jobs:
       - name: Set environment variables
         id: vars
         run: |
-          touch .env
-          echo "next_public_base_url=${{ secrets.NEXT_PUBLIC_BASE_URL }}" > .env
           echo "project_version=$(cat .version)" >> $GITHUB_OUTPUT
           echo "sha=${GITHUB_SHA}" >> $GITHUB_OUTPUT
           echo "repo_name=${GITHUB_REPOSITORY#*\/}" >> $GITHUB_OUTPUT
           echo "ecr_registry=${{ secrets.ECR_REGISTRY_DEVOPS }}" >> $GITHUB_OUTPUT
           echo "ecr_tag=${{ secrets.ECR_REGISTRY_DEVOPS }}/${GITHUB_REPOSITORY#*\/}:dev-${GITHUB_SHA}" >> $GITHUB_OUTPUT
           echo "ecr_tag_latest=${{ secrets.ECR_REGISTRY_DEVOPS }}/${GITHUB_REPOSITORY#*\/}:dev-latest" >> $GITHUB_OUTPUT
-          cat .env
+      - name: Set front environment variables
+        id: front_vars
+        env:
+          DEV_ENV_FILE: ${{ secrets.DEV_ENV_FILE }}
+          PROD_ENV_FILE: ${{ secrets.PROD_ENV_FILE }}
+        run: |
+              [ "${{ inputs.environment }}" = dev ] && echo $DEV_ENV_FILE  > .env
+              [ "${{ inputs.environment }}" = prod ] && echo $PROD_ENV_FILE > .env
       - name: Get Changelog Entry
         id: changelog_reader
         uses: mindsers/changelog-reader-action@v2.2.0
@@ -80,7 +85,7 @@ jobs:
           path: ./CHANGELOG.md
       - name: Build, tag, and push image to Amazon ECR
         run: |
-          docker build -t "${{ steps.vars.outputs.ecr_tag }}" ${{ inputs.dockerfile_location }}
+          docker build -t "${{ steps.vars.outputs.ecr_tag }}" ${{ inputs.dockerfile_location }} $(for i in `cat .env`; do out+="--build-arg $i " ; done; echo $out;out="")
           docker push "${{ steps.vars.outputs.ecr_tag }}"
           docker tag "${{ steps.vars.outputs.ecr_tag }}" "${{ steps.vars.outputs.ecr_tag_latest }}"
           docker push "${{ steps.vars.outputs.ecr_tag_latest }}"
