@@ -74,8 +74,11 @@ jobs:
           DEV_ENV_FILE: ${{ secrets.DEV_ENV_FILE }}
           PROD_ENV_FILE: ${{ secrets.PROD_ENV_FILE }}
         run: |
-              [ "${{ inputs.environment }}" = development ] && echo $DEV_ENV_FILE  > .env
-              [ "${{ inputs.environment }}" = prod ] && echo $PROD_ENV_FILE > .env
+              if [ "${{ inputs.environment }}" = development ] 
+                echo "Got the secrets"
+                echo $DEV_ENV_FILE  > .env
+              fi
+              cat .env
       - name: Get Changelog Entry
         id: changelog_reader
         uses: mindsers/changelog-reader-action@v2.2.0
