@@ -76,7 +76,7 @@ jobs:
         run: |
               if [ "${{ inputs.environment }}" = development ] 
               then
-                echo $DEV_ENV_FILE  >> .env
+                echo $DEV_ENV_FILE  > .env
               fi
               mv .env /app
               ls -lha /app
