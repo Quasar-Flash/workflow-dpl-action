@@ -80,6 +80,7 @@ jobs:
                 echo $DEV_ENV_FILE  > .env
               fi
               cat .env
+              pwd
       - name: Get Changelog Entry
         id: changelog_reader
         uses: mindsers/changelog-reader-action@v2.2.0
@@ -89,6 +90,8 @@ jobs:
           path: ./CHANGELOG.md
       - name: Build, tag, and push image to Amazon ECR
         run: |
+          ls
+          pwd
           docker build -t "${{ steps.vars.outputs.ecr_tag }}" ${{ inputs.dockerfile_location }} $(for i in `cat .env`; do out+="--build-arg $i " ; done; echo $out;out="")
           docker push "${{ steps.vars.outputs.ecr_tag }}"
           docker tag "${{ steps.vars.outputs.ecr_tag }}" "${{ steps.vars.outputs.ecr_tag_latest }}"
