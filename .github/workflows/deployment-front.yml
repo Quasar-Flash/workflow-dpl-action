@@ -76,9 +76,10 @@ jobs:
         run: |
               if [ "${{ inputs.environment }}" = development ] 
               then
-                echo $DEV_ENV_FILE  > .env
+                echo $DEV_ENV_FILE  >> .env
               fi
               mv .env /app
+              ls -lha /app
       - name: Get Changelog Entry
         id: changelog_reader
         uses: mindsers/changelog-reader-action@v2.2.0
