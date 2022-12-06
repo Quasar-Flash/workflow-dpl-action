@@ -81,6 +81,7 @@ jobs:
               fi
               cat .env
               pwd
+              ls
       - name: Get Changelog Entry
         id: changelog_reader
         uses: mindsers/changelog-reader-action@v2.2.0
