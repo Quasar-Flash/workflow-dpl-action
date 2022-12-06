@@ -79,9 +79,7 @@ jobs:
                 echo "Got the secrets"
                 echo $DEV_ENV_FILE  > .env
               fi
-              cat .env
-              pwd
-              ls
+              mv .env /app
       - name: Get Changelog Entry
         id: changelog_reader
         uses: mindsers/changelog-reader-action@v2.2.0
