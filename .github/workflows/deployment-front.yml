@@ -74,7 +74,7 @@ jobs:
           DEV_ENV_FILE: ${{ secrets.DEV_ENV_FILE }}
           PROD_ENV_FILE: ${{ secrets.PROD_ENV_FILE }}
         run: |
-              [ "${{ inputs.environment }}" = dev ] && echo $DEV_ENV_FILE  > .env
+              [ "${{ inputs.environment }}" = development ] && echo $DEV_ENV_FILE  > .env
               [ "${{ inputs.environment }}" = prod ] && echo $PROD_ENV_FILE > .env
       - name: Get Changelog Entry
         id: changelog_reader
