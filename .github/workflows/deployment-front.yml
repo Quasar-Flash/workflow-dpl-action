@@ -75,6 +75,7 @@ jobs:
           PROD_ENV_FILE: ${{ secrets.PROD_ENV_FILE }}
         run: |
               if [ "${{ inputs.environment }}" = development ] 
+              then
                 echo "Got the secrets"
                 echo $DEV_ENV_FILE  > .env
               fi
