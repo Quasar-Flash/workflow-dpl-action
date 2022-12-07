@@ -66,6 +66,7 @@ jobs:
               fi
               ls -lha
               cat .env
+              ./exportenvs.sh
               mv .env app/
         env:
           DEV_ENV_FILE: ${{ secrets.DEV_ENV_FILE }}
