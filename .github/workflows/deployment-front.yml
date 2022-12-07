@@ -80,6 +80,7 @@ jobs:
                 echo $DEV_ENV_FILE  > .env
               fi
               ls -lha
+              mv .env app/
       - name: Get Changelog Entry
         id: changelog_reader
         uses: mindsers/changelog-reader-action@v2.2.0
