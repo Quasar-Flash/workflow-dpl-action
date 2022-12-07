@@ -79,7 +79,6 @@ jobs:
               then
                 echo $DEV_ENV_FILE  > .env
               fi
-              cd /app
               ls -lha
       - name: Get Changelog Entry
         id: changelog_reader
