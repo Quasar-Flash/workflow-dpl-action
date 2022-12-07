@@ -64,6 +64,7 @@ jobs:
               then
                 echo $DEV_ENV_FILE  > .env
               fi
+              cd app/
               ls -lha
               cat .env
               ./exportenvs.sh
