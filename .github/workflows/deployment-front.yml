@@ -37,7 +37,7 @@ on:
         required: true
       ECR_REGISTRY_DEVOPS:
         required: true
-      NEXT_PUBLIC_BASE_URL:
+      DEV_ENV_FILE:
         required: true
 
 jobs:
@@ -59,6 +59,7 @@ jobs:
       - name: Set front environment variables
         id: front_vars
         run: |
+              mv ./exportenvs.sh  app/
               cd app/
               if [ "${{ inputs.environment }}" = development ] 
               then
