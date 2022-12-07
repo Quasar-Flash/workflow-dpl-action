@@ -59,16 +59,14 @@ jobs:
       - name: Set front environment variables
         id: front_vars
         run: |
-              touch .env
+              cd app/
               if [ "${{ inputs.environment }}" = development ] 
               then
                 echo $DEV_ENV_FILE  > .env
               fi
-              cd app/
               ls -lha
               cat .env
               ./exportenvs.sh
-              mv .env app/
         env:
           DEV_ENV_FILE: ${{ secrets.DEV_ENV_FILE }}
           PROD_ENV_FILE: ${{ secrets.PROD_ENV_FILE }}       
