@@ -55,22 +55,7 @@ jobs:
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID_DEVOPS }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY_DEVOPS }}
-          aws-region: ${{ secrets.AWS_DEVOPS_REGION }}
-      - name: Set front environment variables
-        id: front_vars
-        run: |
-              mv ./exportenvs.sh  app/
-              cd app/
-              if [ "${{ inputs.environment }}" = development ] 
-              then
-                echo $DEV_ENV_FILE  > .env
-              fi
-              ls -lha
-              cat .env
-              ./exportenvs.sh
-        env:
-          DEV_ENV_FILE: ${{ secrets.DEV_ENV_FILE }}
-          PROD_ENV_FILE: ${{ secrets.PROD_ENV_FILE }}       
+          aws-region: ${{ secrets.AWS_DEVOPS_REGION }} 
       - name: Login to Amazon ECR
         id: login-ecr
         uses: aws-actions/amazon-ecr-login@v1.5.2
