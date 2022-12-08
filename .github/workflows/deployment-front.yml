@@ -37,8 +37,7 @@ on:
         required: true
       ECR_REGISTRY_DEVOPS:
         required: true
-      DEV_ENV_FILE:
-        required: true
+
 
 jobs:
   Deploying:
