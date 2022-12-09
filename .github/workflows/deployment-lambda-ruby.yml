@@ -1,0 +1,82 @@
+name: Deployment Lambda Ruby
+on:
+  workflow_call:
+    inputs:
+      environment:
+        required: true
+        type: string
+      environment_url:
+        required: true
+        type: string
+      release:
+        default: 'false'
+        required: false
+        type: string
+    secrets:
+      AWS_ACCESS_KEY_ID:
+        required: true
+      AWS_SECRET_ACCESS_KEY:
+        required: true
+      AWS_REGION:
+        required: true
+      FUNCTION_NAME_PROD:
+        required: true
+
+jobs:
+  deployment:
+    name: Deploying
+    runs-on: ubuntu-latest
+    environment:
+      name: ${{ inputs.environment }}
+      url: ${{ inputs.environment_url }}
+    steps:
+    - name: Check out code
+      uses: actions/checkout@v2
+    - uses: ruby/setup-ruby@v1
+      with:
+        ruby-version: '2.7'
+        bundler-cache: true
+    - name: Cache gems
+      uses: actions/cache@v2
+      with:
+        path: vendor/bundle
+        key: ${{ runner.os }}-gem-bundler-${{ hashFiles('**/Gemfile.lock') }}
+        restore-keys: |
+          ${{ runner.os }}-gem-bundler-
+    - name: Set environment variables
+      id: vars
+      run: echo ::set-output name=project_version::$(ruby bin/version.rb)
+    - name: Get Changelog Entry
+      if: ${{ inputs.release == 'true' }}
+      id: changelog_reader
+      uses: mindsers/changelog-reader-action@v2
+      with:
+        validation_depth: 10
+        version: ${{ steps.vars.outputs.project_version }}
+        path: ./docs/CHANGELOG.md
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v1
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: ${{ secrets.AWS_REGION }}
+    - name: Install Deps and Package
+      run: |
+        sudo apt update && sudo apt install -yy build-essential zip && \
+        bundle config set --local without 'development test' && \
+        bundle config set --local path 'vendor/bundle' && \
+        bundle install --full-index && \
+        zip -r function.zip function.rb config vendor services *.rb
+    - name: Deploy to AWS
+      run: aws lambda update-function-code --function-name ${{ secrets.FUNCTION_NAME_PROD }} --zip-file fileb://function.zip
+    - name: Create a GitHub release
+      if: ${{ inputs.release == 'true' }}
+      uses: ncipollo/release-action@v1
+      with:
+        tag: v${{ steps.vars.outputs.project_version }}
+        name: v${{ steps.vars.outputs.project_version }}
+        body: ${{ steps.changelog_reader.outputs.changes }}
+        prerelease: ${{ steps.changelog_reader.outputs.status == 'prereleased' }}
+        draft: ${{ steps.changelog_reader.outputs.status == 'unreleased' }}
+        allowUpdates: true
+        token: ${{ secrets.GITHUB_TOKEN }}
