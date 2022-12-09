@@ -75,6 +75,8 @@ jobs:
           path: ./CHANGELOG.md
       - name: Build, tag, and push image to Amazon ECR
         run: |
+          mv app/.env.develop app/.env
+          rm -r app/.env.production
           docker build -t "${{ steps.vars.outputs.ecr_tag }}" ${{ inputs.dockerfile_location }}
           docker push "${{ steps.vars.outputs.ecr_tag }}"
           docker tag "${{ steps.vars.outputs.ecr_tag }}" "${{ steps.vars.outputs.ecr_tag_latest }}"
