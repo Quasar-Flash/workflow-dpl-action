@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.5.1] - 2022-12-29
+
+### Changed
+
+- [Heroku] Instala a versão do Ruby presente no projeto dinamicamente (arquivo .ruby-version) por @danilogco
+
 ## [1.5.0] - 2022-12-09
 
 ### Added
