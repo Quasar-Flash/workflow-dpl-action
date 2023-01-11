@@ -6,6 +6,7 @@ RUN apt-get update && \
     apt-get install -qy locales && \
     apt-get install -qy curl && \
     apt-get install -qy unzip && \
+    apt-get install -qy git && \
     curl -sSL https://get.docker.com/ | sh
 
 RUN update-locale LANG=C.UTF-8 LC_ALL=C.UTF-8

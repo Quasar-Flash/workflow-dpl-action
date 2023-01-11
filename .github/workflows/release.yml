@@ -1,0 +1,36 @@
+name: Release
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - master
+jobs:
+  Deploying:
+    runs-on: ubuntu-latest
+    environment:
+      name: production
+      url: https://us-east-1.console.aws.amazon.com/ecr/repositories/public/969066181141/deployment-workflow?region=us-east-1
+    steps:
+      - uses: actions/checkout@v3
+      - name: Set environment variables
+        id: vars
+        run: |
+          echo "project_version=$(cat .version)" >> $GITHUB_OUTPUT
+      - name: Get Changelog Entry
+        id: changelog_reader
+        uses: mindsers/changelog-reader-action@v2
+        with:
+          validation_depth: 10
+          version: ${{ steps.vars.outputs.project_version }}
+          path: ./CHANGELOG.md
+      - name: Create a GitHub release
+        if: ${{ inputs.release == 'true' }}
+        uses: ncipollo/release-action@v1
+        with:
+          tag: v${{ steps.vars.outputs.project_version }}
+          name: v${{ steps.vars.outputs.project_version }}
+          body: ${{ steps.changelog_reader.outputs.changes }}
+          prerelease: ${{ steps.changelog_reader.outputs.status == 'prereleased' }}
+          draft: ${{ steps.changelog_reader.outputs.status == 'unreleased' }}
+          allowUpdates: true
+          token: ${{ secrets.GITHUB_TOKEN }}
