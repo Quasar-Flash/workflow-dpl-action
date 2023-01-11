@@ -28,6 +28,9 @@ RUN chmod +x ./kubectl
 
 RUN mv ./kubectl /usr/local/bin/kubectl
 
+# QCedente V! requirements
+RUN curl https://cli-assets.heroku.com/install-ubuntu.sh | sh
+
 ADD clean.sh ./clean.sh
 
 RUN chmod +x clean.sh && ./clean.sh
