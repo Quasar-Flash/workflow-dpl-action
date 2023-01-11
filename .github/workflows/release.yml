@@ -24,7 +24,6 @@ jobs:
           version: ${{ steps.vars.outputs.project_version }}
           path: ./CHANGELOG.md
       - name: Create a GitHub release
-        if: ${{ inputs.release == 'true' }}
         uses: ncipollo/release-action@v1
         with:
           tag: v${{ steps.vars.outputs.project_version }}
