@@ -18,7 +18,7 @@ docker build -t deployment-workflow .
 
 ```bash
 docker tag deployment-workflow:latest public.ecr.aws/qflash/deployment-workflow:latest
-docker tag deployment-workflow:latest public.ecr.aws/qflash/deployment-workflow:0.1.0
+docker tag deployment-workflow:latest public.ecr.aws/qflash/deployment-workflow:$(cat .version)
 docker push public.ecr.aws/qflash/deployment-workflow:latest
-docker push public.ecr.aws/qflash/deployment-workflow:0.1.0
+docker push public.ecr.aws/qflash/deployment-workflow:$(cat .version)
 ```

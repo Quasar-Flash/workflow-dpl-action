@@ -20,7 +20,9 @@ on:
         required: true
 jobs:
   Deploying:
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
+    container:
+      image: public.ecr.aws/qflash/deployment-workflow:latest
     environment:
       name: ${{ inputs.environment }}
       url: ${{ inputs.environment_url }}
@@ -29,29 +31,26 @@ jobs:
       - name: Set environment variables
         id: vars
         run: |
-          echo ::set-output name=project_version::$(cat .version)
-          echo ::set-output name=ruby_version::$(cat .ruby-version)
+          echo "{project_version}=$(cat .version)" >> $GITHUB_OUTPUT
       - name: Get Changelog Entry
+        if: ${{ inputs.release == 'true' }}
         id: changelog_reader
-        uses: mindsers/changelog-reader-action@v2.2.0
+        uses: mindsers/changelog-reader-action@v2
         with:
           validation_depth: 10
           version: ${{ steps.vars.outputs.project_version }}
           path: ./CHANGELOG.md
-      - uses: ruby/setup-ruby@v1
-        with:
-          ruby-version: ${{ steps.vars.outputs.ruby_version }}
-          bundler-cache: true
-      - name: deploy
+      - name: Deploy to Heroku
+        uses: AkhileshNS/heroku-deploy@v3.12.12
         env:
-          APP_NAME: ${{ inputs.app_name }}
           HEROKU_API_KEY: ${{ secrets.HEROKU_API_KEY }}
-        run: |
-          gem install dpl
-          dpl --provider=heroku --app=$APP_NAME --api-key=$HEROKU_API_KEY --label=${{ steps.vars.outputs.project_version }}
+        with:
+          heroku_api_key: ${{secrets.HEROKU_API_KEY}}
+          heroku_app_name: ${{ inputs.app_name }}
+          heroku_email: "desenvolvimento@qflash.com.br"
       - name: Create a GitHub release
         if: ${{ inputs.release == 'true' }}
-        uses: ncipollo/release-action@v1.11.1
+        uses: ncipollo/release-action@v1
         with:
           tag: v${{ steps.vars.outputs.project_version }}
           name: v${{ steps.vars.outputs.project_version }}
