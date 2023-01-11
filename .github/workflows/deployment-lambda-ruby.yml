@@ -31,7 +31,7 @@ jobs:
       url: ${{ inputs.environment_url }}
     steps:
     - name: Check out code
-      uses: actions/checkout@v2
+      uses: actions/checkout@v3
     - uses: ruby/setup-ruby@v1
       with:
         ruby-version: '2.7'
@@ -45,7 +45,7 @@ jobs:
           ${{ runner.os }}-gem-bundler-
     - name: Set environment variables
       id: vars
-      run: echo ::set-output name=project_version::$(ruby bin/version.rb)
+      run: echo "project_version=$(ruby bin/version.rb)" >> $GITHUB_OUTPUT
     - name: Get Changelog Entry
       if: ${{ inputs.release == 'true' }}
       id: changelog_reader

@@ -6,6 +6,8 @@ RUN apt-get update && \
     apt-get install -qy locales && \
     apt-get install -qy curl && \
     apt-get install -qy unzip && \
+    apt-get install -qy git && \
+    apt-get install -qy ruby ruby-dev ruby-bundler build-essential && \
     curl -sSL https://get.docker.com/ | sh
 
 RUN update-locale LANG=C.UTF-8 LC_ALL=C.UTF-8
@@ -29,7 +31,7 @@ RUN chmod +x ./kubectl
 RUN mv ./kubectl /usr/local/bin/kubectl
 
 # QCedente V! requirements
-RUN curl https://cli-assets.heroku.com/install-ubuntu.sh | sh
+RUN gem install dpl-heroku
 
 ADD clean.sh ./clean.sh
 

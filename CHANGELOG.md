@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.6.0] - 2022-01-11
+
+### Added
+
+- Adiciona workflow de release para o repositório por @danilogco #7
+
+### Changed
+
+- Simplifica o deployment para o heroku sem a necessidade de montar o ambiente por @danilogco #7
+
 ## [1.5.1] - 2022-12-29
 
 ### Changed
