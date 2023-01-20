@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.6.3] - 2022-01-20
+
+### Changed
+
+- [Lambda Ruby] Torna o campo `function_name` dinâmico e obrigatório, a ser declarado no workflow da aplicação.
+
 ## [1.6.2] - 2022-01-20
 
 ### Changed
