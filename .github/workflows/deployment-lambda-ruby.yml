@@ -66,7 +66,7 @@ jobs:
         bundle config set --local without 'development test' && \
         bundle config set --local path 'vendor/bundle' && \
         bundle install --full-index && \
-        zip -r function.zip function.rb config vendor services *.rb
+        zip -r function.zip function.rb config vendor services .version *.rb
     - name: Deploy to AWS
       run: aws lambda update-function-code --function-name ${{ secrets.FUNCTION_NAME_PROD }} --zip-file fileb://function.zip
     - name: Create a GitHub release
