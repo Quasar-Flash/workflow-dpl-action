@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.6.2] - 2022-01-20
+
+### Changed
+
+- [Lambda Ruby] Adiciona o arquivo de versão ao arquivo zip de deployment da lambda.
+
 ## [1.6.1] - 2022-01-19
 
 ### Changed
