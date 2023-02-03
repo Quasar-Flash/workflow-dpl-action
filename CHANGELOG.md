@@ -7,11 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.7.0] - 2023-02-03
+
+### Added
+
+- [Ruby Packages] Cria workflow para automatizar deploy de pacotes em Ruby [RubyGems e GitHub] por @danilogco
+
 ## [1.6.3] - 2022-01-20
 
 ### Changed
 
-- [Lambda Ruby] Torna o campo `function_name` dinâmico e obrigatório, a ser declarado no workflow da aplicação.
+- [Lambda Ruby] Torna o campo `function_name` dinâmico e obrigatório, a ser declarado no workflow da aplicação por @danilogco
 
 ## [1.6.2] - 2022-01-20
 
