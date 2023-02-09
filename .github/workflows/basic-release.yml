@@ -1,0 +1,43 @@
+name: Release
+on:
+  workflow_call:
+    inputs:
+      environment:
+        required: true
+        type: string
+      environment_url:
+        required: true
+        type: string
+      release:
+        default: 'true'
+        required: false
+        type: string
+jobs:
+  Releasing:
+    runs-on: ubuntu-latest
+    environment:
+      name: ${{ inputs.environment }}
+      url: ${{ inputs.environment_url }}
+    steps:
+      - uses: actions/checkout@v3
+      - name: Set environment variables
+        id: vars
+        run: |
+          echo "project_version=$(cat .version)" >> $GITHUB_OUTPUT
+      - name: Get Changelog Entry
+        id: changelog_reader
+        uses: mindsers/changelog-reader-action@v2
+        with:
+          validation_depth: 10
+          version: ${{ steps.vars.outputs.project_version }}
+          path: ./CHANGELOG.md
+      - name: Create a GitHub release
+        uses: ncipollo/release-action@v1
+        with:
+          tag: v${{ steps.vars.outputs.project_version }}
+          name: v${{ steps.vars.outputs.project_version }}
+          body: ${{ steps.changelog_reader.outputs.changes }}
+          prerelease: ${{ steps.changelog_reader.outputs.status == 'prereleased' }}
+          draft: ${{ steps.changelog_reader.outputs.status == 'unreleased' }}
+          allowUpdates: true
+          token: ${{ secrets.GITHUB_TOKEN }}
