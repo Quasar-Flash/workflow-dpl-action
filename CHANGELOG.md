@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.8.0] - 2023-02-09
+
+### Added
+
+- Workflow para gerar releases básicas sem compilação ou deployment por @danilogco
+
 ## [1.7.0] - 2023-02-03
 
 ### Added
