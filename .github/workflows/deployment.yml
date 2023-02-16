@@ -20,6 +20,10 @@ on:
         default: 'false'
         required: false
         type: string
+      envfile_to_env:
+        default: 'false'
+        required: false
+        type: string
     secrets:
       AWS_ACCESS_KEY_ID:
         required: true
@@ -57,7 +61,6 @@ jobs:
           echo "ecr_registry=${{ secrets.ECR_REGISTRY }}" >> $GITHUB_OUTPUT
           echo "ecr_tag=${{ secrets.ECR_REGISTRY }}/${GITHUB_REPOSITORY#*\/}:dev-${GITHUB_SHA}" >> $GITHUB_OUTPUT
           echo "ecr_tag_latest=${{ secrets.ECR_REGISTRY }}/${GITHUB_REPOSITORY#*\/}:dev-latest" >> $GITHUB_OUTPUT
-
       - name: Get Changelog Entry
         id: changelog_reader
         uses: mindsers/changelog-reader-action@v2.2.0
@@ -65,6 +68,11 @@ jobs:
           validation_depth: 10
           version: ${{ steps.vars.outputs.project_version }}
           path: ./CHANGELOG.md
+      - name: Config environment file
+        if: ${{ inputs.envfile_to_env != 'false' }}
+        run: |
+          mv ${{ inputs.envfile_to_env }} app/.env
+          rm -r app/.env.*
       - name: Build, tag, and push image to Amazon ECR
         run: |
           docker build -t "${{ steps.vars.outputs.ecr_tag }}" ${{ inputs.dockerfile_location }}

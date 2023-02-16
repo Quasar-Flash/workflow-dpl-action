@@ -20,6 +20,10 @@ on:
         default: 'false'
         required: false
         type: string
+      envfile_to_env:
+        default: 'false'
+        required: false
+        type: string
     secrets:
       AWS_ACCESS_KEY_ID_DEVOPS:
         required: true
@@ -73,6 +77,11 @@ jobs:
           validation_depth: 10
           version: ${{ steps.vars.outputs.project_version }}
           path: ./CHANGELOG.md
+      - name: Config environment file
+        if: ${{ inputs.envfile_to_env != 'false' }}
+        run: |
+          mv ${{ inputs.envfile_to_env }} app/.env
+          rm -r app/.env.*
       - name: Build, tag, and push image to Amazon ECR
         run: |
           docker build -t "${{ steps.vars.outputs.ecr_tag }}" ${{ inputs.dockerfile_location }}
