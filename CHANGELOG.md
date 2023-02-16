@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.9.0] - 2023-02-16
+
+### Added
+
+- Cria um novo workflow para deployment de lambdas Java por @danilogco
+
 ## [1.8.0] - 2023-02-09
 
 ### Added
