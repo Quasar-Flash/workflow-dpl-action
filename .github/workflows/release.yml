@@ -11,6 +11,15 @@ jobs:
       name: production
       url: https://us-east-1.console.aws.amazon.com/ecr/repositories/public/969066181141/deployment-workflow?region=us-east-1
     steps:
+      -  uses: tspascoal/get-user-teams-membership@v2
+        name: Check user permission
+        id: checkUserMember
+        with:
+          username: ${{ github.actor }}
+          team: 'tech-leads'
+          GITHUB_TOKEN: ${{ secrets.PAT }}
+      - uses: andymckay/cancel-action@0.3
+        if: ${{ steps.checkUserMember.outputs.isTeamMember == 'false' }}
       - uses: actions/checkout@v3
       - name: Set environment variables
         id: vars

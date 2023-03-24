@@ -1,0 +1,61 @@
+name: Test
+on:
+  workflow_call:
+    inputs:
+      dockerfile_location:
+        required: false
+        type: string
+        default: '.'
+      templates_location:
+        required: false
+        type: string
+        default: 'deployment/'
+      environment:
+        required: true
+        type: string
+      environment_url:
+        required: true
+        type: string
+      release:
+        default: 'false'
+        required: false
+        type: string
+      envfile_to_env:
+        default: 'false'
+        required: false
+        type: string
+    secrets:
+      AWS_ACCESS_KEY_ID_DEVOPS:
+        required: true
+      AWS_SECRET_ACCESS_KEY_DEVOPS:
+        required: true
+      AWS_ACCESS_KEY_ID_DEV:
+        required: true
+      AWS_DEVOPS_REGION:
+        required: true
+      AWS_ECR_REGION:
+        required: true
+      AWS_SECRET_ACCESS_KEY_DEV:
+        required: true
+      CLUSTER_NAME_DEV:
+        required: true
+      ECR_REGISTRY_DEVOPS:
+        required: true
+
+jobs:
+  Deploying:
+    runs-on: ubuntu-latest
+    steps:
+      -  uses: tspascoal/get-user-teams-membership@v2
+        name: Check user permission
+        id: checkUserMember
+        with:
+          username: ${{ github.actor }}
+          team: 'tech-leads'
+          GITHUB_TOKEN: ${{ secrets.PAT }}
+      - uses: andymckay/cancel-action@0.3
+        if: ${{ steps.checkUserMember.outputs.isTeamMember == 'false' }}
+      - uses: actions/checkout@v3
+      - name: Set environment variables
+        run: |
+          echo "Hello, World"
