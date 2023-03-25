@@ -11,6 +11,15 @@ jobs:
       name: production
       url: https://us-east-1.console.aws.amazon.com/ecr/repositories/public/969066181141/deployment-workflow?region=us-east-1
     steps:
+      - name: Parse authorized users for deployment action
+        uses: kanga333/json-array-builder@main
+        id: array
+        with:
+          cmd: echo "${{ vars.DEPLOYMENT_USERS }}"
+          separator: space
+      - name: Cancel unauthorized deployment
+        uses: andymckay/cancel-action@0.3
+        if: ${{ contains(steps.array.outputs.build, github.actor) == false }}
       - uses: actions/checkout@v3
       - name: Set environment variables
         id: vars

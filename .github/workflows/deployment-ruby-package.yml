@@ -14,6 +14,15 @@ jobs:
     name: Deploying
     runs-on: ubuntu-latest
     steps:
+      - name: Parse authorized users for deployment action
+        uses: kanga333/json-array-builder@main
+        id: array
+        with:
+          cmd: echo "${{ vars.DEPLOYMENT_USERS }}"
+          separator: space
+      - name: Cancel unauthorized deployment
+        uses: andymckay/cancel-action@0.3
+        if: ${{ contains(steps.array.outputs.build, github.actor) == false }}
       - name: Checkout
         uses: actions/checkout@v3
       - uses: ruby/setup-ruby@v1

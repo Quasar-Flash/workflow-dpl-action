@@ -33,6 +33,7 @@ on:
         required: true
       ECR_REGISTRY:
         required: true
+
 jobs:
   Deploying:
     runs-on: self-hosted
@@ -42,16 +43,17 @@ jobs:
       name: ${{ inputs.environment }}
       url: ${{ inputs.environment_url }}
     steps:
-      - uses: actions/checkout@v3
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v1
+      - name: Parse authorized users for deployment action
+        if: ${{ (inputs.release == 'true' || inputs.environment == 'production') }}
+        uses: kanga333/json-array-builder@main
+        id: array
         with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: us-east-1
-      - name: Login to Amazon ECR
-        id: login-ecr
-        uses: aws-actions/amazon-ecr-login@v1.5.2
+          cmd: echo "${{ vars.DEPLOYMENT_USERS }}"
+          separator: space
+      - name: Cancel unauthorized deployment
+        uses: andymckay/cancel-action@0.3
+        if: ${{ (inputs.release == 'true' || inputs.environment == 'production') && contains(steps.array.outputs.build, github.actor) == false }}
+      - uses: actions/checkout@v3
       - name: Set environment variables
         id: vars
         run: |
@@ -61,6 +63,15 @@ jobs:
           echo "ecr_registry=${{ secrets.ECR_REGISTRY }}" >> $GITHUB_OUTPUT
           echo "ecr_tag=${{ secrets.ECR_REGISTRY }}/${GITHUB_REPOSITORY#*\/}:dev-${GITHUB_SHA}" >> $GITHUB_OUTPUT
           echo "ecr_tag_latest=${{ secrets.ECR_REGISTRY }}/${GITHUB_REPOSITORY#*\/}:dev-latest" >> $GITHUB_OUTPUT
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-east-1
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v1.5.2
       - name: Get Changelog Entry
         id: changelog_reader
         uses: mindsers/changelog-reader-action@v2.2.0

@@ -19,6 +19,16 @@ jobs:
       name: ${{ inputs.environment }}
       url: ${{ inputs.environment_url }}
     steps:
+      - name: Parse authorized users for deployment action
+        if: ${{ (inputs.release == 'true' || inputs.environment == 'production') }}
+        uses: kanga333/json-array-builder@main
+        id: array
+        with:
+          cmd: echo "${{ vars.DEPLOYMENT_USERS }}"
+          separator: space
+      - name: Cancel unauthorized deployment
+        uses: andymckay/cancel-action@0.3
+        if: ${{ (inputs.release == 'true' || inputs.environment == 'production') && contains(steps.array.outputs.build, github.actor) == false }}
       - uses: actions/checkout@v3
       - name: Set environment variables
         id: vars
