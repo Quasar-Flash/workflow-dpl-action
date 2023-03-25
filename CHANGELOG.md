@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.10.0] - 2023-03-25
+
+### Added
+
+- Adiciona verificação de variável organizacional que lista usuários autorizados a fazer deploy em produção por @danilogco
+
 ## [1.9.0] - 2023-02-16
 
 ### Added
