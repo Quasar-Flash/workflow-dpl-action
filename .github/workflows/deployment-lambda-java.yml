@@ -33,7 +33,7 @@ on:
 jobs:
   deployment:
     name: Deploying
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     environment:
       name: ${{ inputs.environment }}
       url: ${{ inputs.environment_url }}

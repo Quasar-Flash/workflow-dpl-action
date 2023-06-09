@@ -12,7 +12,7 @@ on:
 jobs:
   deployment:
     name: Deploying
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     steps:
       - name: Parse authorized users for deployment action
         uses: kanga333/json-array-builder@main
