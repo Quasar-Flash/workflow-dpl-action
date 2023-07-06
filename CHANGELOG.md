@@ -7,7 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.10.3] - 2023-07-06
+
+### Fixed
+
+- Corrige problema na adaptação de templates onde o image possui espaçamento diferente do habitual por @danilogco
+
 ## [1.10.2] - 2023-06-09
+
+### Changed
 
 - Altera runner padrão por workflows especiais da v1 e v2 por @danilogco
 

@@ -71,6 +71,11 @@ jobs:
       - name: Login to Amazon ECR
         id: login-ecr
         uses: aws-actions/amazon-ecr-login@v1.5.2
+      - name: Set ECT pretag
+        id: ecr-pretag
+        if: ${{ inputs.environment == 'development' }}
+        run: |
+          echo "ecr_pretag=dev-"
       - name: Set environment variables
         id: vars
         run: |
@@ -78,8 +83,9 @@ jobs:
           echo "sha=${GITHUB_SHA}" >> $GITHUB_OUTPUT
           echo "repo_name=${GITHUB_REPOSITORY#*\/}" >> $GITHUB_OUTPUT
           echo "ecr_registry=${{ secrets.ECR_REGISTRY_DEVOPS }}" >> $GITHUB_OUTPUT
-          echo "ecr_tag=${{ secrets.ECR_REGISTRY_DEVOPS }}/${GITHUB_REPOSITORY#*\/}:dev-${GITHUB_SHA}" >> $GITHUB_OUTPUT
-          echo "ecr_tag_latest=${{ secrets.ECR_REGISTRY_DEVOPS }}/${GITHUB_REPOSITORY#*\/}:dev-latest" >> $GITHUB_OUTPUT
+          echo "ecr_tag=${{ secrets.ECR_REGISTRY_DEVOPS }}/${GITHUB_REPOSITORY#*\/}:${{ steps.ecr-pretag.outputs.ecr_pretag }}${GITHUB_SHA}" >> $GITHUB_OUTPUT
+          echo "ecr_tag_latest=${{ secrets.ECR_REGISTRY_DEVOPS }}/${GITHUB_REPOSITORY#*\/}:${{ steps.ecr-pretag.outputs.ecr_pretag }}latest" >> $GITHUB_OUTPUT
+          echo "ecr_tag_latest_escaped=${{ secrets.ECR_REGISTRY_DEVOPS }}\/${GITHUB_REPOSITORY#*\/}:${{ steps.ecr-pretag.outputs.ecr_pretag }}${GITHUB_SHA}" >> $GITHUB_OUTPUT
       - name: Get Changelog Entry
         id: changelog_reader
         uses: mindsers/changelog-reader-action@v2.2.0
@@ -108,8 +114,8 @@ jobs:
         run: aws eks update-kubeconfig --name "${{ secrets.CLUSTER_NAME_DEV }}"
       - name: Deploy to K8s
         run: |
-          sed -i '/image\:/c\        image: ${{ steps.vars.outputs.ecr_tag }}' ${{ inputs.templates_location}}${{ inputs.environment }}.yml
-          kubectl apply -f deployment/${{ inputs.environment }}.yml
+          sed -i '0,/^\([[:space:]]*image: *\).*/s//\1${{ steps.vars.outputs.ecr_tag_latest_escaped }}/;' ${{ inputs.templates_location}}${{ inputs.environment }}.yml
+          kubectl apply -f ${{ inputs.templates_location}}${{ inputs.environment }}.yml
       - name: Create a GitHub release
         if: ${{ inputs.release == 'true' }}
         uses: ncipollo/release-action@v1.11.1
