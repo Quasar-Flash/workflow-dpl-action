@@ -62,6 +62,7 @@ jobs:
           echo "repo_name=${GITHUB_REPOSITORY#*\/}" >> $GITHUB_OUTPUT
           echo "ecr_registry=${{ secrets.ECR_REGISTRY }}" >> $GITHUB_OUTPUT
           echo "ecr_tag=${{ secrets.ECR_REGISTRY }}/${GITHUB_REPOSITORY#*\/}:dev-${GITHUB_SHA}" >> $GITHUB_OUTPUT
+          echo "ecr_tag_escaped=${{ secrets.ECR_REGISTRY }}\/${GITHUB_REPOSITORY#*\/}:dev-${GITHUB_SHA}" >> $GITHUB_OUTPUT
           echo "ecr_tag_latest=${{ secrets.ECR_REGISTRY }}/${GITHUB_REPOSITORY#*\/}:dev-latest" >> $GITHUB_OUTPUT
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v1
@@ -92,8 +93,8 @@ jobs:
         run: aws eks update-kubeconfig --name "${{ secrets.CLUSTER_NAME }}"
       - name: Deploy to K8s
         run: |
-          sed -i '/image\:/c\        image: ${{ steps.vars.outputs.ecr_tag }}' ${{ inputs.templates_location}}${{ inputs.environment }}.yml
-          kubectl apply -f deployment/${{ inputs.environment }}.yml
+          sed -i '0,/^\([[:space:]]*image: *\).*/s//\1${{ steps.vars.outputs.ecr_tag_escaped }}/;' ${{ inputs.templates_location}}${{ inputs.environment }}.yml
+          kubectl apply -f ${{ inputs.templates_location}}${{ inputs.environment }}.yml
       - name: Create a GitHub release
         if: ${{ inputs.release == 'true' }}
         uses: ncipollo/release-action@v1.11.1
