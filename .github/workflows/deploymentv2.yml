@@ -41,7 +41,6 @@ on:
         required: true
       ECR_REGISTRY_DEVOPS:
         required: true
-
 jobs:
   Deploying:
     runs-on: ubuntu-latest
@@ -51,32 +50,32 @@ jobs:
       name: ${{ inputs.environment }}
       url: ${{ inputs.environment_url }}
     steps:
-      - name: Parse authorized users for deployment action
+      - name: Verifica se o usuário tem permissão para executar a ação
         if: ${{ (inputs.release == 'true' || inputs.environment == 'production') }}
         uses: kanga333/json-array-builder@main
         id: array
         with:
           cmd: echo "${{ vars.DEPLOYMENT_USERS }}"
           separator: space
-      - name: Cancel unauthorized deployment
+      - name: Cancela ação desautorizada para o usuário
         uses: andymckay/cancel-action@0.3
         if: ${{ (inputs.release == 'true' || inputs.environment == 'production') && contains(steps.array.outputs.build, github.actor) == false }}
       - uses: actions/checkout@v3
-      - name: Configure AWS credentials
+      - name: Configura as credenciais da AWS (DevOps)
         uses: aws-actions/configure-aws-credentials@v1
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID_DEVOPS }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY_DEVOPS }}
           aws-region: ${{ secrets.AWS_DEVOPS_REGION }}
-      - name: Login to Amazon ECR
+      - name: Autentica com o AWS ECR
         id: login-ecr
         uses: aws-actions/amazon-ecr-login@v1.5.2
-      - name: Set ECT pretag
+      - name: Verifica a tag para upload no ECR
         id: ecr-pretag
         if: ${{ inputs.environment == 'development' }}
         run: |
           echo "ecr_pretag=dev-"
-      - name: Set environment variables
+      - name: Atribui variáveis de ambiente para realizar os uploads
         id: vars
         run: |
           echo "project_version=$(cat .version)" >> $GITHUB_OUTPUT
@@ -86,37 +85,38 @@ jobs:
           echo "ecr_tag=${{ secrets.ECR_REGISTRY_DEVOPS }}/${GITHUB_REPOSITORY#*\/}:${{ steps.ecr-pretag.outputs.ecr_pretag }}${GITHUB_SHA}" >> $GITHUB_OUTPUT
           echo "ecr_tag_latest=${{ secrets.ECR_REGISTRY_DEVOPS }}/${GITHUB_REPOSITORY#*\/}:${{ steps.ecr-pretag.outputs.ecr_pretag }}latest" >> $GITHUB_OUTPUT
           echo "ecr_tag_latest_escaped=${{ secrets.ECR_REGISTRY_DEVOPS }}\/${GITHUB_REPOSITORY#*\/}:${{ steps.ecr-pretag.outputs.ecr_pretag }}${GITHUB_SHA}" >> $GITHUB_OUTPUT
-      - name: Get Changelog Entry
+      - name: Recupera o histórico da versão para a criação da release
         id: changelog_reader
         uses: mindsers/changelog-reader-action@v2.2.0
         with:
           validation_depth: 10
           version: ${{ steps.vars.outputs.project_version }}
           path: ./CHANGELOG.md
-      - name: Config environment file
+      - name: Configura o arquivo .env estático de acordo com o ambiente
         if: ${{ inputs.envfile_to_env != 'false' }}
         run: |
           mv ${{ inputs.envfile_to_env }} app/.env
           rm -r app/.env.*
-      - name: Build, tag, and push image to Amazon ECR
+      - name: Constrói a imagem e faz upload para o AWS ECR
         run: |
           docker build -t "${{ steps.vars.outputs.ecr_tag }}" ${{ inputs.dockerfile_location }}
           docker push "${{ steps.vars.outputs.ecr_tag }}"
           docker tag "${{ steps.vars.outputs.ecr_tag }}" "${{ steps.vars.outputs.ecr_tag_latest }}"
           docker push "${{ steps.vars.outputs.ecr_tag_latest }}"
-      - name: Configure AWS credentials
+      - name: Configura as credenciais da AWS (Dev)
         uses: aws-actions/configure-aws-credentials@v1
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID_DEV }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY_DEV }}
           aws-region: ${{ secrets.AWS_ECR_REGION }}
-      - name: Install and configure kubeclt
+      - name: Instala e configura o kubeclt
         run: aws eks update-kubeconfig --name "${{ secrets.CLUSTER_NAME_DEV }}"
-      - name: Deploy to K8s
+      - name: Prepara o template incluindo a imagem com o git sha
         run: |
           sed -i '0,/^\([[:space:]]*image: *\).*/s//\1${{ steps.vars.outputs.ecr_tag_latest_escaped }}/;' ${{ inputs.templates_location}}${{ inputs.environment }}.yml
-          kubectl apply -f ${{ inputs.templates_location}}${{ inputs.environment }}.yml
-      - name: Create a GitHub release
+      - name: Aplica o template no K8S
+        run: kubectl apply -f ${{ inputs.templates_location}}${{ inputs.environment }}.yml
+      - name: Cria a release no Github para a versão
         if: ${{ inputs.release == 'true' }}
         uses: ncipollo/release-action@v1.11.1
         with:

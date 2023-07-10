@@ -27,22 +27,22 @@ jobs:
       name: ${{ inputs.environment }}
       url: ${{ inputs.environment_url }}
     steps:
-      - name: Parse authorized users for deployment action
+      - name: Verifica se o usuário tem permissão para executar a ação
         if: ${{ (inputs.release == 'true' || inputs.environment == 'production') }}
         uses: kanga333/json-array-builder@main
         id: array
         with:
           cmd: echo "${{ vars.DEPLOYMENT_USERS }}"
           separator: space
-      - name: Cancel unauthorized deployment
+      - name: Cancela ação desautorizada para o usuário
         uses: andymckay/cancel-action@0.3
         if: ${{ (inputs.release == 'true' || inputs.environment == 'production') && contains(steps.array.outputs.build, github.actor) == false }}
       - uses: actions/checkout@v3
-      - name: Set environment variables
+      - name: Atribui variáveis de ambiente para realizar os uploads
         id: vars
         run: |
           echo "project_version=$(cat .version)" >> $GITHUB_OUTPUT
-      - name: Get Changelog Entry
+      - name: Recupera o histórico da versão para a criação da release
         if: ${{ inputs.release == 'true' }}
         id: changelog_reader
         uses: mindsers/changelog-reader-action@v2
@@ -50,14 +50,14 @@ jobs:
           validation_depth: 10
           version: ${{ steps.vars.outputs.project_version }}
           path: ./CHANGELOG.md
-      - name: Deploy to Heroku
+      - name: Deploy para o Heroku
         env:
           APP_NAME: ${{ inputs.app_name }}
           APP_VERSION: ${{ steps.vars.outputs.project_version }}
           HEROKU_API_KEY: ${{ secrets.HEROKU_API_KEY }}
         run: |
           dpl --provider=heroku --app=$APP_NAME --api-key=$HEROKU_API_KEY --label=$APP_VERSION --description=$APP_VERSION
-      - name: Create a GitHub release
+      - name: Cria a release no Github para a versão
         if: ${{ inputs.release == 'true' }}
         uses: ncipollo/release-action@v1
         with:
