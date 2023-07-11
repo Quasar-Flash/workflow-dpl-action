@@ -56,8 +56,7 @@ jobs:
       - name: Verifica a tag para upload no ECR
         id: ecr-pretag
         if: ${{ !(inputs.release == 'true' || inputs.environment == 'production') }}
-        run: |
-          echo "ecr_pretag=dev-"
+        run: echo "ecr_pretag=dev-" >> $GITHUB_OUTPUT
       - name: Atribui variáveis de ambiente para realizar os uploads
         id: vars
         run: |
@@ -97,7 +96,7 @@ jobs:
         run: aws eks update-kubeconfig --name "${{ secrets.CLUSTER_NAME }}"
       - name: Prepara o template incluindo a imagem com o git sha
         run: |
-          sed -i '0,/^\([[:space:]]*image: *\).*/s//\1${{ steps.vars.outputs.ecr_tag_latest_escaped }}/;' ${{ inputs.templates_location}}${{ inputs.environment }}.yml
+          sed -i '/^\([[:space:]]*image: *\).*/s//\1${{ steps.vars.outputs.ecr_tag_latest_escaped }}/;' ${{ inputs.templates_location}}${{ inputs.environment }}.yml
       - name: Aplica o template no K8S
         run: kubectl apply -f ${{ inputs.templates_location}}${{ inputs.environment }}.yml
       - name: Cria a release no Github para a versão
