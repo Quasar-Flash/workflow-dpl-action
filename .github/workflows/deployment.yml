@@ -36,8 +36,6 @@ on:
 jobs:
   Deploying:
     runs-on: ubuntu-latest
-    container:
-      image: public.ecr.aws/qflash/deployment-workflow:latest
     environment:
       name: ${{ inputs.environment }}
       url: ${{ inputs.environment_url }}
@@ -52,7 +50,17 @@ jobs:
       - name: Cancela ação desautorizada para o usuário
         uses: andymckay/cancel-action@0.3
         if: ${{ (inputs.release == 'true' || inputs.environment == 'production') && contains(steps.array.outputs.build, github.actor) == false }}
-      - uses: actions/checkout@v3
+      - name: Checkout do repositório
+        uses: actions/checkout@v3
+      - name: Instala o Docker Buildx
+        uses: docker/setup-buildx-action@v2
+      - name: Cache Docker layers
+        uses: actions/cache@v2
+        with:
+          path: /tmp/.buildx-cache
+          key: ${{ runner.os }}-buildx-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-buildx-
       - name: Verifica a tag para upload no ECR
         id: ecr-pretag
         if: ${{ !(inputs.release == 'true' || inputs.environment == 'production') }}
@@ -89,9 +97,13 @@ jobs:
           mv ${{ inputs.envfile_to_env }} app/.env
           rm -r app/.env.*
       - name: Constrói a imagem e faz upload para o AWS ECR
-        run: |
-          docker build -t "${{ steps.vars.outputs.ecr_tag }}" ${{ inputs.dockerfile_location }}
-          docker push "${{ steps.vars.outputs.ecr_tag }}"
+        uses: docker/build-push-action@v4
+        with:
+          context: ${{ inputs.dockerfile_location }}
+          push: true
+          tags: "${{ steps.vars.outputs.ecr_tag_latest }},${{ steps.vars.outputs.ecr_tag }}"
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
       - name: Instala e configura o kubeclt
         run: aws eks update-kubeconfig --name "${{ secrets.CLUSTER_NAME }}"
       - name: Prepara o template incluindo a imagem com o git sha
