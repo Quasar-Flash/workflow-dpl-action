@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.11.0] - 2023-07-13
+
+### Changed
+
+- Implementação de Docker Buildx para fazer caching a nível de layers a fim de reduzir tempo de build das aplicações por @danilogco
+
 ## [1.10.3] - 2023-07-06
 
 ### Fixed
