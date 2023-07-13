@@ -22,6 +22,9 @@ on:
   push:
     branches:
       - master
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: true
 jobs:
   Deploying:
     uses: Quasar-Flash/workflow-dpl-action/.github/workflows/deployment.yml@master
