@@ -104,6 +104,8 @@ jobs:
           tags: "${{ steps.vars.outputs.ecr_tag_latest }},${{ steps.vars.outputs.ecr_tag }}"
           cache-from: type=gha
           cache-to: type=gha,mode=max
+          build-args: |
+            "ENVIRONMENT=production"
       - name: Instala e configura o kubeclt
         run: aws eks update-kubeconfig --name "${{ secrets.CLUSTER_NAME }}"
       - name: Checkout do repositório de templates

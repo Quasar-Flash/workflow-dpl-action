@@ -112,6 +112,8 @@ jobs:
           tags: "${{ steps.vars.outputs.ecr_tag_latest }},${{ steps.vars.outputs.ecr_tag }}"
           cache-from: type=gha
           cache-to: type=gha,mode=max
+          build-args: |
+            "ENVIRONMENT=production"
       - name: Configura as credenciais da AWS (Dev)
         uses: aws-actions/configure-aws-credentials@v1
         with:
