@@ -49,7 +49,7 @@ jobs:
           separator: space
       - name: Cancela ação desautorizada para o usuário
         uses: andymckay/cancel-action@0.3
-        if: ${{ (inputs.release == 'true' || inputs.environment == 'production') && contains(steps.array.outputs.build, github.actor) == false }}
+        if: ${{ inputs.environment != 'production' || (inputs.release == 'true' || inputs.environment == 'production') && contains(steps.array.outputs.build, github.actor) == false }}
       - name: Checkout do repositório
         uses: actions/checkout@v3
       - name: Instala o Docker Buildx
