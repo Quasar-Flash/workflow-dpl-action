@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.11.1] - 2023-07-17
+
+### Changed
+
+- Cancela deployments automaticamente para o ambiente de desenvolvimento para o cluster antigo por @danilogco
+
 ## [1.11.0] - 2023-07-13
 
 ### Changed
