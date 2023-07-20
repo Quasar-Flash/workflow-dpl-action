@@ -1,0 +1,100 @@
+name: Deployment Lambda Java
+on:
+  workflow_call:
+    inputs:
+      environment:
+        required: true
+        type: string
+      environment_url:
+        required: true
+        type: string
+      function_name:
+        required: true
+        type: string
+      release:
+        default: 'false'
+        required: false
+        type: string
+      java_version:
+        default: '8'
+        required: false
+        type: string
+      target:
+        required: true
+        type: string
+    secrets:
+      AWS_ACCESS_KEY_ID_DEV:
+        required: true
+      AWS_SECRET_ACCESS_KEY_DEV:
+        required: true
+      AWS_ECR_REGION:
+        required: true
+
+jobs:
+  deployment:
+    name: Deploying
+    runs-on: ubuntu-latest
+    environment:
+      name: ${{ inputs.environment }}
+      url: ${{ inputs.environment_url }}
+    steps:
+      - name: Parse authorized users for deployment action
+        if: ${{ (inputs.release == 'true' || inputs.environment == 'production') }}
+        uses: kanga333/json-array-builder@main
+        id: array
+        with:
+          cmd: echo "${{ vars.DEPLOYMENT_USERS }}"
+          separator: space
+      - name: Cancel unauthorized deployment
+        uses: andymckay/cancel-action@0.3
+        if: ${{ (inputs.release == 'true' || inputs.environment == 'production') && contains(steps.array.outputs.build, github.actor) == false }}
+      - name: Check out code
+        uses: actions/checkout@v3
+      - name: Set environment variables
+        id: vars
+        run: echo "project_version=$(cat .version)" >> $GITHUB_OUTPUT
+      - name: Get Changelog Entry
+        if: ${{ inputs.release == 'true' }}
+        id: changelog_reader
+        uses: mindsers/changelog-reader-action@v2
+        with:
+          validation_depth: 10
+          version: ${{ steps.vars.outputs.project_version }}
+          path: ./CHANGELOG.md
+      - uses: actions/setup-java@v3
+        with:
+          distribution: 'corretto' # See 'Supported distributions' for available options
+          java-version: ${{ inputs.java_version }}
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID_DEV }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY_DEV }}
+          aws-region: ${{ secrets.AWS_ECR_REGION }}
+      - name: Cache local Maven repository
+        uses: actions/cache@v3
+        with:
+          path: ~/.m2/repository
+          key: ${{ runner.os }}-maven-${{ hashFiles('**/pom.xml') }}
+          restore-keys: |
+            ${{ runner.os }}-maven-
+      - name: Setup Maven Action
+        uses: s4u/setup-maven-action@v1.4.0
+        with:
+          java-version: ${{ inputs.java_version }}
+      - name: Packaging
+        run: ./package.sh
+      - name: Uploading to AWS
+        run: |
+          aws lambda update-function-code --function-name ${{ inputs.function_name }} --zip-file fileb://${{ inputs.target }}
+      - name: Create a GitHub release
+        if: ${{ inputs.release == 'true' }}
+        uses: ncipollo/release-action@v1
+        with:
+          tag: v${{ steps.vars.outputs.project_version }}
+          name: v${{ steps.vars.outputs.project_version }}
+          body: ${{ steps.changelog_reader.outputs.changes }}
+          prerelease: ${{ steps.changelog_reader.outputs.status == 'prereleased' }}
+          draft: ${{ steps.changelog_reader.outputs.status == 'unreleased' }}
+          allowUpdates: true
+          token: ${{ secrets.GITHUB_TOKEN }}
