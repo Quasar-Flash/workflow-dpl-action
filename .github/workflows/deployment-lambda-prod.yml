@@ -1,0 +1,76 @@
+name: Deployment Lambda Prod
+on:
+  workflow_call:
+    inputs:
+      release:
+        default: "false"
+        required: false
+        type: string
+      url:
+        required: false
+        type: string
+    secrets:
+      AWS_ACCESS_KEY_ID:
+        required: true
+      AWS_SECRET_ACCESS_KEY:
+        required: true
+      AWS_ECR_REGION:
+        required: true
+jobs:
+  build-deploy:
+    name: Deploying
+    runs-on: ubuntu-latest
+    environment:
+      name: Development
+      url: ${{ inputs.url }}
+    steps:
+      - name: Verifica se o usuário tem permissão para executar a ação
+        if: ${{ (inputs.release == 'true' || inputs.environment == 'production') }}
+        uses: kanga333/json-array-builder@main
+        id: array
+        with:
+          cmd: echo "${{ vars.DEPLOYMENT_USERS }}"
+          separator: space
+      - name: Cancela ação desautorizada para o usuário
+        uses: andymckay/cancel-action@0.3
+        if: ${{ (inputs.release == 'true' || inputs.environment == 'production') && contains(steps.array.outputs.build, github.actor) == false }}
+      - name: Checkout
+        uses: actions/checkout@v3
+      - name: Atribui variáveis de ambiente para realizar os uploads
+        id: vars
+        run: |
+          echo "project_version=$(cat .version)" >> $GITHUB_OUTPUT
+          echo "sha=${GITHUB_SHA}" >> $GITHUB_OUTPUT
+          echo "repo_name=${GITHUB_REPOSITORY#*\/}" >> $GITHUB_OUTPUT
+      - name: Recupera o histórico da versão para a criação da release
+        id: changelog_reader
+        uses: mindsers/changelog-reader-action@v2.2.0
+        with:
+          validation_depth: 10
+          version: ${{ steps.vars.outputs.project_version }}
+          path: ./CHANGELOG.md
+      - name: SAM installation
+        uses: aws-actions/setup-sam@v2
+        with:
+          use-installer: true
+      - name: Credentials configuration
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_ECR_REGION }}
+      - name: SAM Build
+        run: make build_prod
+      - name: SAM Deploy
+        run: make deploy_prod
+      - name: Cria a release no Github para a versão
+        if: ${{ inputs.release == 'true' }}
+        uses: ncipollo/release-action@v1.11.1
+        with:
+          tag: v${{ steps.vars.outputs.project_version }}
+          name: v${{ steps.vars.outputs.project_version }}
+          body: ${{ steps.changelog_reader.outputs.changes }}
+          prerelease: ${{ steps.changelog_reader.outputs.status == 'prereleased' }}
+          draft: ${{ steps.changelog_reader.outputs.status == 'unreleased' }}
+          allowUpdates: true
+          token: ${{ secrets.GITHUB_TOKEN }}

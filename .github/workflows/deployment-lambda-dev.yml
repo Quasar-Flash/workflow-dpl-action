@@ -1,4 +1,4 @@
-name: Deployment Lambda
+name: Deployment Lambda Dev
 on:
   workflow_call:
     inputs:
