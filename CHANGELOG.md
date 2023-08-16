@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.12.0] - 2023-08-15
+
+### Added
+
+- Adiciona template para ambiente HML (namespace) por @danilogco
+- Adiciona templates para Lambdas AWS baseadas em SAM por @danilogco
+
+### Changed
+
+- build(deps): bump configure-aws-credentials from v1 to v2 por @danilogco
+
 ## [1.11.1] - 2023-07-17
 
 ### Changed
