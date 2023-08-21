@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.13.0] - 2023-08-21
+
+### Changed
+
+- [DVOP-195](https://qflash.atlassian.net/browse/DVOP-195) Limpeza de cache não acessado por mais de 7 dias por @danilogco
+
 ## [1.12.0] - 2023-08-15
 
 ### Added
