@@ -5,16 +5,16 @@ on:
       dockerfile_location:
         required: false
         type: string
-        default: '.'
+        default: "."
       templates_location:
         required: false
         type: string
-        default: 'deployment/'
+        default: "deployment/"
       environment_url:
         required: true
         type: string
       envfile_to_env:
-        default: 'false'
+        default: "false"
         required: false
         type: string
     secrets:
@@ -98,18 +98,24 @@ jobs:
         uses: actions/checkout@master
         with:
           repository: ${{ vars.EKS_TEMPLATES_REPO }}
-          path: 'target'
+          path: "target"
           token: ${{ secrets.EKS_TEMPLATES_CHECKOUT_PAT }}
       - name: Resolve template correspondente à aplicação
         id: template
         run: |
-            if test -f "target/qflash-dev/hml/${{ steps.vars.outputs.repo_name }}.yml"; then
-              echo "eks_template=target/qflash-dev/hml/${{ steps.vars.outputs.repo_name }}.yml" >> $GITHUB_OUTPUT
-            else
-              echo "eks_template=${{ inputs.templates_location}}${{ inputs.environment }}.yml" >> $GITHUB_OUTPUT
-            fi
+          if test -f "target/qflash-dev/hml/${{ steps.vars.outputs.repo_name }}.yml"; then
+            echo "eks_template=target/qflash-dev/hml/${{ steps.vars.outputs.repo_name }}.yml" >> $GITHUB_OUTPUT
+          else
+            echo "eks_template=${{ inputs.templates_location}}${{ inputs.environment }}.yml" >> $GITHUB_OUTPUT
+          fi
       - name: Prepara o template incluindo a imagem com o git sha
         run: |
           sed -i '/^\([[:space:]]*image: *\).*/s//\1${{ steps.vars.outputs.ecr_tag_latest_escaped }}/;' ${{ steps.template.outputs.eks_template }}
       - name: Aplica o template no K8S
         run: kubectl apply -f ${{ steps.template.outputs.eks_template }}
+      - name: Purge old cache
+        uses: MyAlbum/purge-cache@v2
+        with:
+          accessed: true # Purge caches by their last accessed time (default)
+          created: false # Purge caches by their created time (default)
+          max-age: 604800 # Leave only caches accessed in the last 7 days (default)

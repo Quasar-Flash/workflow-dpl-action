@@ -12,7 +12,7 @@ on:
         required: true
         type: string
       release:
-        default: 'false'
+        default: "false"
         required: false
         type: string
     secrets:
@@ -44,7 +44,7 @@ jobs:
         uses: actions/checkout@v3
       - uses: ruby/setup-ruby@v1
         with:
-          ruby-version: '2.7'
+          ruby-version: "2.7"
           bundler-cache: true
       - name: Cache gems
         uses: actions/cache@v2
@@ -90,3 +90,9 @@ jobs:
           draft: ${{ steps.changelog_reader.outputs.status == 'unreleased' }}
           allowUpdates: true
           token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Purge old cache
+        uses: MyAlbum/purge-cache@v2
+        with:
+          accessed: true # Purge caches by their last accessed time (default)
+          created: false # Purge caches by their created time (default)
+          max-age: 604800 # Leave only caches accessed in the last 7 days (default)
