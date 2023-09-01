@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.14.0] - 2023-09-01
+
+### Added
+
+- Atualiza parâmetros da aplicação antes de aplicar o template por @danilogco
+
 ## [1.13.0] - 2023-08-21
 
 ### Changed
