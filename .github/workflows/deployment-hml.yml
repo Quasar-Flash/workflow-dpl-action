@@ -53,7 +53,7 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-buildx-
       - name: Configura as credenciais da AWS (DevOps)
-        uses: aws-actions/configure-aws-credentials@v2
+        uses: aws-actions/configure-aws-credentials@v3
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID_DEVOPS }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY_DEVOPS }}
@@ -87,7 +87,7 @@ jobs:
           build-args: |
             "ENVIRONMENT=homologation"
       - name: Configura as credenciais da AWS (Dev)
-        uses: aws-actions/configure-aws-credentials@v2
+        uses: aws-actions/configure-aws-credentials@v3
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID_DEV }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY_DEV }}
@@ -111,6 +111,8 @@ jobs:
       - name: Prepara o template incluindo a imagem com o git sha
         run: |
           sed -i '/^\([[:space:]]*image: *\).*/s//\1${{ steps.vars.outputs.ecr_tag_latest_escaped }}/;' ${{ steps.template.outputs.eks_template }}
+      - name: Atualiza os parâmetros da aplicação
+        run: kubectl annotate externalsecret.external-secrets.io ${{ steps.vars.outputs.repo_name }}-parameters -n dev force-sync=$(date +%s) --overwrite
       - name: Aplica o template no K8S
         run: kubectl apply -f ${{ steps.template.outputs.eks_template }}
       - name: Purge old cache
@@ -119,3 +121,4 @@ jobs:
           accessed: true # Purge caches by their last accessed time (default)
           created: false # Purge caches by their created time (default)
           max-age: 604800 # Leave only caches accessed in the last 7 days (default)
+

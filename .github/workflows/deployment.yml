@@ -76,14 +76,14 @@ jobs:
           echo "ecr_tag_latest=${{ secrets.ECR_REGISTRY }}/${GITHUB_REPOSITORY#*\/}:${{ steps.ecr-pretag.outputs.ecr_pretag }}latest" >> $GITHUB_OUTPUT
           echo "ecr_tag_latest_escaped=${{ secrets.ECR_REGISTRY }}\/${GITHUB_REPOSITORY#*\/}:${{ steps.ecr-pretag.outputs.ecr_pretag }}${GITHUB_SHA}" >> $GITHUB_OUTPUT
       - name: Configura as credenciais da AWS (Cluster Antigo)
-        uses: aws-actions/configure-aws-credentials@v2
+        uses: aws-actions/configure-aws-credentials@v3
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: us-east-1
       - name: Autentica com o AWS ECR
         id: login-ecr
-        uses: aws-actions/amazon-ecr-login@v1.5.2
+        uses: aws-actions/amazon-ecr-login@v1
       - name: Recupera o histórico da versão para a criação da release
         id: changelog_reader
         uses: mindsers/changelog-reader-action@v2.2.0
@@ -129,7 +129,7 @@ jobs:
         run: kubectl apply -f ${{ steps.template.outputs.eks_template }}
       - name: Cria a release no Github para a versão
         if: ${{ inputs.release == 'true' }}
-        uses: ncipollo/release-action@v1.11.1
+        uses: ncipollo/release-action@v1
         with:
           tag: v${{ steps.vars.outputs.project_version }}
           name: v${{ steps.vars.outputs.project_version }}
