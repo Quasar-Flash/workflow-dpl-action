@@ -112,8 +112,10 @@ jobs:
         run: |
           sed -i '/^\([[:space:]]*image: *\).*/s//\1${{ steps.vars.outputs.ecr_tag_latest_escaped }}/;' ${{ steps.template.outputs.eks_template }}
       - name: Atualiza os parâmetros da aplicação
+        continue-on-error: true
         run: kubectl annotate externalsecret.external-secrets.io ${{ steps.vars.outputs.repo_name }}-parameters -n dev force-sync=$(date +%s) --overwrite
       - name: Aplica o template no K8S
+        if: success() || failure()
         run: kubectl apply -f ${{ steps.template.outputs.eks_template }}
       - name: Purge old cache
         uses: MyAlbum/purge-cache@v2
