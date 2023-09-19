@@ -49,7 +49,7 @@ jobs:
         uses: andymckay/cancel-action@0.3
         if: ${{ (inputs.release == 'true' || inputs.environment == 'production') && contains(steps.array.outputs.build, github.actor) == false }}
       - name: Check out code
-        uses: actions/checkout@v3
+        uses: actions/checkout@master
       - name: Set environment variables
         id: vars
         run: echo "project_version=$(cat .version)" >> $GITHUB_OUTPUT

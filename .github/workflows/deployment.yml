@@ -25,6 +25,14 @@ on:
         required: false
         type: string
     secrets:
+      AWS_ACCESS_KEY_ID_DEVOPS:
+        required: true
+      AWS_SECRET_ACCESS_KEY_DEVOPS:
+        required: true
+      AWS_DEVOPS_REGION:
+        required: true
+      ECR_REGISTRY_DEVOPS:
+        required: true
       AWS_ACCESS_KEY_ID:
         required: true
       AWS_SECRET_ACCESS_KEY:
@@ -42,7 +50,7 @@ jobs:
     steps:
       - name: Verifica se o usuário tem permissão para executar a ação
         if: ${{ (inputs.release == 'true' || inputs.environment == 'production') }}
-        uses: kanga333/json-array-builder@main
+        uses: kanga333/json-array-builder@v0.2.1
         id: array
         with:
           cmd: echo "${{ vars.DEPLOYMENT_USERS }}"
@@ -51,39 +59,35 @@ jobs:
         uses: andymckay/cancel-action@0.3
         if: ${{ inputs.environment != 'production' || (inputs.release == 'true' || inputs.environment == 'production') && contains(steps.array.outputs.build, github.actor) == false }}
       - name: Checkout do repositório
-        uses: actions/checkout@v3
+        uses: actions/checkout@master
       - name: Instala o Docker Buildx
-        uses: docker/setup-buildx-action@v2
+        uses: docker/setup-buildx-action@v3
       - name: Cache Docker layers
-        uses: actions/cache@v2
+        uses: actions/cache@v3
         with:
           path: /tmp/.buildx-cache
           key: ${{ runner.os }}-buildx-${{ github.sha }}
           restore-keys: |
             ${{ runner.os }}-buildx-
-      - name: Verifica a tag para upload no ECR
-        id: ecr-pretag
-        if: ${{ !(inputs.release == 'true' || inputs.environment == 'production') }}
-        run: echo "ecr_pretag=dev-" >> $GITHUB_OUTPUT
+      - name: Configura as credenciais da AWS (DevOps)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID_DEVOPS }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY_DEVOPS }}
+          aws-region: ${{ secrets.AWS_DEVOPS_REGION }}
+      - name: Autentica com o AWS ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v1
       - name: Atribui variáveis de ambiente para realizar os uploads
         id: vars
         run: |
           echo "project_version=$(cat .version)" >> $GITHUB_OUTPUT
           echo "sha=${GITHUB_SHA}" >> $GITHUB_OUTPUT
           echo "repo_name=${GITHUB_REPOSITORY#*\/}" >> $GITHUB_OUTPUT
-          echo "ecr_registry=${{ secrets.ECR_REGISTRY }}" >> $GITHUB_OUTPUT
-          echo "ecr_tag=${{ secrets.ECR_REGISTRY }}/${GITHUB_REPOSITORY#*\/}:${{ steps.ecr-pretag.outputs.ecr_pretag }}${GITHUB_SHA}" >> $GITHUB_OUTPUT
-          echo "ecr_tag_latest=${{ secrets.ECR_REGISTRY }}/${GITHUB_REPOSITORY#*\/}:${{ steps.ecr-pretag.outputs.ecr_pretag }}latest" >> $GITHUB_OUTPUT
-          echo "ecr_tag_latest_escaped=${{ secrets.ECR_REGISTRY }}\/${GITHUB_REPOSITORY#*\/}:${{ steps.ecr-pretag.outputs.ecr_pretag }}${GITHUB_SHA}" >> $GITHUB_OUTPUT
-      - name: Configura as credenciais da AWS (Cluster Antigo)
-        uses: aws-actions/configure-aws-credentials@v3
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: us-east-1
-      - name: Autentica com o AWS ECR
-        id: login-ecr
-        uses: aws-actions/amazon-ecr-login@v1
+          echo "ecr_registry=${{ secrets.ECR_REGISTRY_DEVOPS }}" >> $GITHUB_OUTPUT
+          echo "ecr_tag=${{ secrets.ECR_REGISTRY_DEVOPS }}/${GITHUB_REPOSITORY#*\/}:${GITHUB_SHA}" >> $GITHUB_OUTPUT
+          echo "ecr_tag_latest=${{ secrets.ECR_REGISTRY_DEVOPS }}/${GITHUB_REPOSITORY#*\/}:latest" >> $GITHUB_OUTPUT
+          echo "ecr_tag_latest_escaped=${{ secrets.ECR_REGISTRY_DEVOPS }}\/${GITHUB_REPOSITORY#*\/}:${GITHUB_SHA}" >> $GITHUB_OUTPUT
       - name: Recupera o histórico da versão para a criação da release
         id: changelog_reader
         uses: mindsers/changelog-reader-action@v2.2.0
@@ -106,6 +110,14 @@ jobs:
           cache-to: type=gha,mode=max
           build-args: |
             "ENVIRONMENT=production"
+      - name: Configura as credenciais da AWS (Cluster Antigo)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-east-1
+      - name: Autentica com o AWS ECR
+        uses: aws-actions/amazon-ecr-login@v1
       - name: Instala e configura o kubeclt
         run: aws eks update-kubeconfig --name "${{ secrets.CLUSTER_NAME }}"
       - name: Checkout do repositório de templates

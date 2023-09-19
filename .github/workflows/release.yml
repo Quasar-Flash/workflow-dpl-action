@@ -23,7 +23,7 @@ jobs:
       - name: Cancel unauthorized deployment
         uses: andymckay/cancel-action@0.3
         if: ${{ contains(steps.array.outputs.build, github.actor) == false }}
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@master
       - name: Set environment variables
         id: vars
         run: |

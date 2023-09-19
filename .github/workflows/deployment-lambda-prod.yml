@@ -35,7 +35,7 @@ jobs:
         uses: andymckay/cancel-action@0.3
         if: ${{ (inputs.release == 'true' || inputs.environment == 'production') && contains(steps.array.outputs.build, github.actor) == false }}
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@master
       - name: Atribui variáveis de ambiente para realizar os uploads
         id: vars
         run: |

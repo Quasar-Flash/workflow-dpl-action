@@ -37,7 +37,7 @@ jobs:
       - name: Cancela ação desautorizada para o usuário
         uses: andymckay/cancel-action@0.3
         if: ${{ inputs.environment != 'production' || ((inputs.release == 'true' || inputs.environment == 'production') && contains(steps.array.outputs.build, github.actor) == false) }}
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@master
       - name: Atribui variáveis de ambiente para realizar os uploads
         id: vars
         run: |

@@ -21,7 +21,7 @@ jobs:
       url: ${{ inputs.url }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@master
       - name: SAM installation
         uses: aws-actions/setup-sam@v2
         with:

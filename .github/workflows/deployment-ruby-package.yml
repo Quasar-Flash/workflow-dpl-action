@@ -24,7 +24,7 @@ jobs:
         uses: andymckay/cancel-action@0.3
         if: ${{ contains(steps.array.outputs.build, github.actor) == false }}
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@master
       - uses: ruby/setup-ruby@v1
         with:
           ruby-version: "3.2"
