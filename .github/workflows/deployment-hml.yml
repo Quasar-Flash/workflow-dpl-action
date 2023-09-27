@@ -17,6 +17,10 @@ on:
         default: "false"
         required: false
         type: string
+      app_location:
+        default: "app/"
+        required: false
+        type: string
     secrets:
       AWS_ACCESS_KEY_ID_DEVOPS:
         required: true
@@ -74,8 +78,7 @@ jobs:
       - name: Configura o arquivo .env estático de acordo com o ambiente
         if: ${{ inputs.envfile_to_env != 'false' }}
         run: |
-          mv ${{ inputs.envfile_to_env }} app/.env
-          rm -r app/.env.*
+          mv ${{ inputs.envfile_to_env }} ${{ inputs.app_location }}.env
       - name: Constrói a imagem e faz upload para o AWS ECR
         uses: docker/build-push-action@v4
         with:

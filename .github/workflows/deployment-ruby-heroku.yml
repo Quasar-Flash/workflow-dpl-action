@@ -20,9 +20,7 @@ on:
         required: true
 jobs:
   Deploying:
-    runs-on: self-hosted
-    container:
-      image: public.ecr.aws/qflash/deployment-workflow:latest
+    runs-on: ubuntu-latest
     environment:
       name: ${{ inputs.environment }}
       url: ${{ inputs.environment_url }}
@@ -51,12 +49,11 @@ jobs:
           version: ${{ steps.vars.outputs.project_version }}
           path: ./CHANGELOG.md
       - name: Deploy para o Heroku
-        env:
-          APP_NAME: ${{ inputs.app_name }}
-          APP_VERSION: ${{ steps.vars.outputs.project_version }}
-          HEROKU_API_KEY: ${{ secrets.HEROKU_API_KEY }}
-        run: |
-          dpl --provider=heroku --app=$APP_NAME --api-key=$HEROKU_API_KEY --label=$APP_VERSION --description=$APP_VERSION
+        uses: tiagogouvea/github-dpl-action@master
+        with:
+          provider: "heroku"
+          app: ${{ inputs.app_name }}
+          api-key: ${{ secrets.HEROKU_API_KEY }}
       - name: Cria a release no Github para a versão
         if: ${{ inputs.release == 'true' }}
         uses: ncipollo/release-action@v1
