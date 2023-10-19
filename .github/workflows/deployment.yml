@@ -103,6 +103,7 @@ jobs:
         if: ${{ inputs.envfile_to_env != 'false' }}
         run: |
           mv ${{ inputs.envfile_to_env }} ${{ inputs.app_location }}.env
+          rm ${{ inputs.app_location }}.env.*
       - name: Constrói a imagem e faz upload para o AWS ECR
         uses: docker/build-push-action@v4
         with:
