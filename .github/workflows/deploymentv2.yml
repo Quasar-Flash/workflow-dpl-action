@@ -139,8 +139,8 @@ jobs:
       - name: Resolve template correspondente à aplicação
         id: template
         run: |
-          if test -f "target/qflash-dev/${{ inputs.namespace }}/${{ steps.vars.outputs.repo_name }}.yml"; then
-            echo "eks_template=target/qflash-dev/${{ inputs.namespace }}/${{ steps.vars.outputs.repo_name }}.yml" >> $GITHUB_OUTPUT
+          if test -f "target/services/${{ inputs.namespace }}/${{ steps.vars.outputs.repo_name }}.yml"; then
+            echo "eks_template=target/services/${{ inputs.namespace }}/${{ steps.vars.outputs.repo_name }}.yml" >> $GITHUB_OUTPUT
           else
             echo "eks_template=${{ inputs.templates_location}}${{ inputs.environment }}.yml" >> $GITHUB_OUTPUT
           fi
