@@ -43,8 +43,6 @@ on:
         required: true
       CLUSTER_NAME:
         required: true
-      ECR_REGISTRY:
-        required: true
 jobs:
   Deploying:
     runs-on: ubuntu-latest
