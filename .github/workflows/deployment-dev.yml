@@ -11,7 +11,8 @@ on:
         type: string
         default: "deployment/"
       environment:
-        required: true
+        default: "development"
+        required: false
         type: string
       environment_url:
         required: true
