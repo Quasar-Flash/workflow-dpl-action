@@ -12,7 +12,7 @@ jobs:
     runs-on: ubuntu-latest
     environment:
       name: production
-      url: https://us-east-1.console.aws.amazon.com/ecr/repositories/public/969066181141/deployment-workflow?region=us-east-1
+      url: https://qflash.com.br
     steps:
       - name: Parse authorized users for deployment action
         uses: kanga333/json-array-builder@main
@@ -21,7 +21,7 @@ jobs:
           cmd: echo "${{ vars.DEPLOYMENT_USERS }}"
           separator: space
       - name: Cancel unauthorized deployment
-        uses: andymckay/cancel-action@0.3
+        uses: andymckay/cancel-action@master
         if: ${{ contains(steps.array.outputs.build, github.actor) == false }}
       - uses: actions/checkout@master
       - name: Set environment variables

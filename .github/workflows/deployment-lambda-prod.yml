@@ -32,7 +32,7 @@ jobs:
           cmd: echo "${{ vars.DEPLOYMENT_USERS }}"
           separator: space
       - name: Cancela ação desautorizada para o usuário
-        uses: andymckay/cancel-action@0.3
+        uses: andymckay/cancel-action@master
         if: ${{ (inputs.release == 'true' || inputs.environment == 'production') && contains(steps.array.outputs.build, github.actor) == false }}
       - name: Checkout
         uses: actions/checkout@master

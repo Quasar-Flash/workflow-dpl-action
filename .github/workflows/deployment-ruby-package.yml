@@ -21,7 +21,7 @@ jobs:
           cmd: echo "${{ vars.DEPLOYMENT_USERS }}"
           separator: space
       - name: Cancel unauthorized deployment
-        uses: andymckay/cancel-action@0.3
+        uses: andymckay/cancel-action@master
         if: ${{ contains(steps.array.outputs.build, github.actor) == false }}
       - name: Checkout
         uses: actions/checkout@master

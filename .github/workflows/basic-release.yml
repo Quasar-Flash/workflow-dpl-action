@@ -27,7 +27,7 @@ jobs:
           cmd: echo "${{ vars.DEPLOYMENT_USERS }}"
           separator: space
       - name: Cancel unauthorized deployment
-        uses: andymckay/cancel-action@0.3
+        uses: andymckay/cancel-action@master
         if: ${{ (inputs.release == 'true' || inputs.environment == 'production') && contains(steps.array.outputs.build, github.actor) == false }}
       - uses: actions/checkout@master
       - name: Set environment variables
