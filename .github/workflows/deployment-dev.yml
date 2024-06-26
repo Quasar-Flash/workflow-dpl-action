@@ -91,9 +91,14 @@ jobs:
         id: ecr-pretag
         if: ${{ inputs.environment != 'production' }}
         run: echo "ecr_pretag=${{ inputs.namespace }}-" >> $GITHUB_OUTPUT
+      - name: Extract branch name
+        shell: bash
+        run: echo "branch=${GITHUB_HEAD_REF:-${GITHUB_REF#refs/heads/}}" >> $GITHUB_OUTPUT
+        id: extract_branch
       - name: Atribui variáveis de ambiente para realizar os uploads
         id: vars
         run: |
+          echo "branch_name=${{ steps.extract_branch.outputs.branch }} >> $GITHUB_OUTPUT
           echo "project_version=$(cat .version)" >> $GITHUB_OUTPUT
           echo "sha=${GITHUB_SHA}" >> $GITHUB_OUTPUT
           echo "repo_name=${GITHUB_REPOSITORY#*\/}" >> $GITHUB_OUTPUT
@@ -122,6 +127,7 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
           build-args: |
+            "BRANCH_NAME=${{ steps.vars.outputs.branch_name }}"
             "ENVIRONMENT=production"
       - name: Configura as credenciais da AWS (Dev)
         uses: aws-actions/configure-aws-credentials@v3
