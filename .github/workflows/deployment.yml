@@ -80,6 +80,10 @@ jobs:
       - name: Autentica com o AWS ECR
         id: login-ecr
         uses: aws-actions/amazon-ecr-login@v1
+      - name: Extract branch name
+        shell: bash
+        run: echo "branch=${GITHUB_HEAD_REF:-${GITHUB_REF#refs/heads/}}" >> $GITHUB_OUTPUT
+        id: extract_branch
       - name: Atribui variáveis de ambiente para realizar os uploads
         id: vars
         run: |
@@ -111,6 +115,7 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
           build-args: |
+            "BRANCH_NAME=${{ steps.extract_branch.outputs.branch }}"
             "ENVIRONMENT=production"
       - name: Configura as credenciais da AWS (Cluster Antigo)
         uses: aws-actions/configure-aws-credentials@v4
