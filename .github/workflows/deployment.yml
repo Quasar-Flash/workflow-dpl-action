@@ -91,9 +91,9 @@ jobs:
           echo "sha=${GITHUB_SHA}" >> $GITHUB_OUTPUT
           echo "repo_name=${GITHUB_REPOSITORY#*\/}" >> $GITHUB_OUTPUT
           echo "ecr_registry=${{ secrets.ECR_REGISTRY_DEVOPS }}" >> $GITHUB_OUTPUT
-          echo "ecr_tag=${{ secrets.ECR_REGISTRY_DEVOPS }}/${GITHUB_REPOSITORY#*\/}:prod-${GITHUB_SHA}" >> $GITHUB_OUTPUT
-          echo "ecr_tag_latest=${{ secrets.ECR_REGISTRY_DEVOPS }}/${GITHUB_REPOSITORY#*\/}:prod-latest" >> $GITHUB_OUTPUT
-          echo "ecr_tag_latest_escaped=${{ secrets.ECR_REGISTRY_DEVOPS }}\/${GITHUB_REPOSITORY#*\/}:prod-${GITHUB_SHA}" >> $GITHUB_OUTPUT
+          echo "ecr_tag=${{ secrets.ECR_REGISTRY_DEVOPS }}/${GITHUB_REPOSITORY#*\/}:prd-${GITHUB_SHA}" >> $GITHUB_OUTPUT
+          echo "ecr_tag_latest=${{ secrets.ECR_REGISTRY_DEVOPS }}/${GITHUB_REPOSITORY#*\/}:prd-latest" >> $GITHUB_OUTPUT
+          echo "ecr_tag_latest_escaped=${{ secrets.ECR_REGISTRY_DEVOPS }}\/${GITHUB_REPOSITORY#*\/}:prd-${GITHUB_SHA}" >> $GITHUB_OUTPUT
       - name: Recupera o histórico da versão para a criação da release
         id: changelog_reader
         uses: mindsers/changelog-reader-action@v2.2.0
