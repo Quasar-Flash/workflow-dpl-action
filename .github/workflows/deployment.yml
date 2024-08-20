@@ -79,7 +79,7 @@ jobs:
           aws-region: ${{ secrets.AWS_DEVOPS_REGION }}
       - name: Autentica com o AWS ECR
         id: login-ecr
-        uses: aws-actions/amazon-ecr-login@v1
+        uses: aws-actions/amazon-ecr-login@v2
       - name: Extract branch name
         shell: bash
         run: echo "branch=${GITHUB_HEAD_REF:-${GITHUB_REF#refs/heads/}}" >> $GITHUB_OUTPUT
@@ -96,7 +96,7 @@ jobs:
           echo "ecr_tag_latest_escaped=${{ secrets.ECR_REGISTRY_DEVOPS }}\/${GITHUB_REPOSITORY#*\/}:prd-${GITHUB_SHA}" >> $GITHUB_OUTPUT
       - name: Recupera o histórico da versão para a criação da release
         id: changelog_reader
-        uses: mindsers/changelog-reader-action@v2.2.0
+        uses: mindsers/changelog-reader-action@v2
         with:
           validation_depth: 10
           version: ${{ steps.vars.outputs.project_version }}
@@ -107,7 +107,7 @@ jobs:
           mv ${{ inputs.envfile_to_env }} ${{ inputs.app_location }}.env
           rm ${{ inputs.app_location }}.env.*
       - name: Constrói a imagem e faz upload para o AWS ECR
-        uses: docker/build-push-action@v4
+        uses: docker/build-push-action@v6
         with:
           context: ${{ inputs.dockerfile_location }}
           push: true
@@ -124,7 +124,7 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: us-east-1
       - name: Autentica com o AWS ECR
-        uses: aws-actions/amazon-ecr-login@v1
+        uses: aws-actions/amazon-ecr-login@v2
       - name: Instala e configura o kubeclt
         run: aws eks update-kubeconfig --name "${{ secrets.CLUSTER_NAME }}"
       - name: Checkout do repositório de templates
@@ -138,14 +138,16 @@ jobs:
         run: |
           if test -f "target/services/${{ steps.vars.outputs.repo_name }}/template-prod.yml"; then
             echo "eks_template=target/services/${{ steps.vars.outputs.repo_name }}/template-prod.yml" >> $GITHUB_OUTPUT
+            echo "eks_template_result=tmp/template-prod.yml" >> $GITHUB_OUTPUT
           else
-            echo "eks_template=${{ inputs.templates_location}}${{ inputs.environment }}.yml" >> $GITHUB_OUTPUT
+            echo "eks_template=target/services/template.yml" >> $GITHUB_OUTPUT
+            echo "eks_template_result=tmp/template.yml" >> $GITHUB_OUTPUT
           fi
-      - name: Prepara o template incluindo a imagem com o git sha
-        run: |
-          sed -i '/^\([[:space:]]*image: *\).*/s//\1${{ steps.vars.outputs.ecr_tag_latest_escaped }}/;' ${{ steps.template.outputs.eks_template }}
       - name: Aplica o template no K8S
-        run: kubectl apply -f ${{ steps.template.outputs.eks_template }}
+        run: |
+          ./target/bin/ytt -f ${{ steps.template.outputs.eks_template }} -f target/services/defaults.prod.yml -f target/services/${{ steps.vars.outputs.repo_name }}/values.prod.yml --output-files tmp/
+          sed -i '/^\([[:space:]]*image: *\).*/s//\1${{ steps.vars.outputs.ecr_tag_latest_escaped }}/;' ${{ steps.template.outputs.eks_template_result }}
+          kubectl apply -f ${{ steps.template.outputs.eks_template_result }}
       - name: Cria a release no Github para a versão
         if: ${{ inputs.release == 'true' }}
         uses: ncipollo/release-action@v1

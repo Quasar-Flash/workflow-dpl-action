@@ -17,10 +17,6 @@ on:
       environment_url:
         required: true
         type: string
-      release:
-        default: "false"
-        required: false
-        type: string
       envfile_to_env:
         default: "false"
         required: false
@@ -57,16 +53,6 @@ jobs:
       name: ${{ inputs.environment }}
       url: ${{ inputs.environment_url }}
     steps:
-      - name: Verifica se o usuário tem permissão para executar a ação
-        if: ${{ (inputs.release == 'true' || inputs.environment == 'production') }}
-        uses: kanga333/json-array-builder@main
-        id: array
-        with:
-          cmd: echo "${{ vars.DEPLOYMENT_USERS }}"
-          separator: space
-      - name: Cancela ação desautorizada para o usuário
-        uses: andymckay/cancel-action@master
-        if: ${{ (inputs.release == 'true' || inputs.environment == 'production') && contains(steps.array.outputs.build, github.actor) == false }}
       - name: Checkout do repositório
         uses: actions/checkout@master
       - name: Instala o Docker Buildx
@@ -79,14 +65,14 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-buildx-
       - name: Configura as credenciais da AWS (DevOps)
-        uses: aws-actions/configure-aws-credentials@v3
+        uses: aws-actions/configure-aws-credentials@v4
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID_DEVOPS }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY_DEVOPS }}
           aws-region: ${{ secrets.AWS_DEVOPS_REGION }}
       - name: Autentica com o AWS ECR
         id: login-ecr
-        uses: aws-actions/amazon-ecr-login@v1
+        uses: aws-actions/amazon-ecr-login@v2
       - name: Verifica a tag para upload no ECR
         id: ecr-pretag
         if: ${{ inputs.environment != 'production' }}
@@ -98,7 +84,7 @@ jobs:
       - name: Atribui variáveis de ambiente para realizar os uploads
         id: vars
         run: |
-          echo "branch_name=${{ steps.extract_branch.outputs.branch }} >> $GITHUB_OUTPUT
+          echo "branch_name=${{ steps.extract_branch.outputs.branch }}" >> $GITHUB_OUTPUT
           echo "project_version=$(cat .version)" >> $GITHUB_OUTPUT
           echo "sha=${GITHUB_SHA}" >> $GITHUB_OUTPUT
           echo "repo_name=${GITHUB_REPOSITORY#*\/}" >> $GITHUB_OUTPUT
@@ -106,20 +92,13 @@ jobs:
           echo "ecr_tag=${{ secrets.ECR_REGISTRY_DEVOPS }}/${GITHUB_REPOSITORY#*\/}:${{ steps.ecr-pretag.outputs.ecr_pretag }}${GITHUB_SHA}" >> $GITHUB_OUTPUT
           echo "ecr_tag_latest=${{ secrets.ECR_REGISTRY_DEVOPS }}/${GITHUB_REPOSITORY#*\/}:${{ steps.ecr-pretag.outputs.ecr_pretag }}latest" >> $GITHUB_OUTPUT
           echo "ecr_tag_latest_escaped=${{ secrets.ECR_REGISTRY_DEVOPS }}\/${GITHUB_REPOSITORY#*\/}:${{ steps.ecr-pretag.outputs.ecr_pretag }}${GITHUB_SHA}" >> $GITHUB_OUTPUT
-      - name: Recupera o histórico da versão para a criação da release
-        id: changelog_reader
-        uses: mindsers/changelog-reader-action@v2
-        with:
-          validation_depth: 10
-          version: ${{ steps.vars.outputs.project_version }}
-          path: ./CHANGELOG.md
       - name: Configura o arquivo .env estático de acordo com o ambiente
         if: ${{ inputs.envfile_to_env != 'false' }}
         run: |
           mv ${{ inputs.envfile_to_env }} ${{ inputs.app_location }}.env
           rm ${{ inputs.app_location }}.env.*
       - name: Constrói a imagem e faz upload para o AWS ECR
-        uses: docker/build-push-action@v4
+        uses: docker/build-push-action@v6
         with:
           context: ${{ inputs.dockerfile_location }}
           push: true
@@ -130,7 +109,7 @@ jobs:
             "BRANCH_NAME=${{ steps.vars.outputs.branch_name }}"
             "ENVIRONMENT=production"
       - name: Configura as credenciais da AWS (Dev)
-        uses: aws-actions/configure-aws-credentials@v3
+        uses: aws-actions/configure-aws-credentials@v4
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID_DEV }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY_DEV }}
@@ -148,26 +127,17 @@ jobs:
         run: |
           if test -f "target/services/${{ steps.vars.outputs.repo_name }}/template-dev.yml"; then
             echo "eks_template=target/services/${{ steps.vars.outputs.repo_name }}/template-dev.yml" >> $GITHUB_OUTPUT
+            echo "eks_template_result=tmp/template-dev.yml" >> $GITHUB_OUTPUT
           else
-            echo "eks_template=${{ inputs.templates_location}}${{ inputs.environment }}.yml" >> $GITHUB_OUTPUT
+            echo "eks_template=target/services/template.yml" >> $GITHUB_OUTPUT
+            echo "eks_template_result=tmp/template.yml" >> $GITHUB_OUTPUT
           fi
-      - name: Prepara o template incluindo a imagem com o git sha
-        run: |
-          sed -i '/^\([[:space:]]*image: *\).*/s//\1${{ steps.vars.outputs.ecr_tag_latest_escaped }}/;' ${{ steps.template.outputs.eks_template }}
       - name: Aplica o template no K8S
         if: success() || failure()
-        run: kubectl apply -f ${{ steps.template.outputs.eks_template }}
-      - name: Cria a release no Github para a versão
-        if: ${{ inputs.release == 'true' }}
-        uses: ncipollo/release-action@v1
-        with:
-          tag: v${{ steps.vars.outputs.project_version }}
-          name: v${{ steps.vars.outputs.project_version }}
-          body: ${{ steps.changelog_reader.outputs.changes }}
-          prerelease: ${{ steps.changelog_reader.outputs.status == 'prereleased' }}
-          draft: ${{ steps.changelog_reader.outputs.status == 'unreleased' }}
-          allowUpdates: true
-          token: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          ./target/bin/ytt -f ${{ steps.template.outputs.eks_template }} -f target/services/defaults.dev.yml -f target/services/${{ steps.vars.outputs.repo_name }}/values.dev.yml --output-files tmp/
+          sed -i '/^\([[:space:]]*image: *\).*/s//\1${{ steps.vars.outputs.ecr_tag_latest_escaped }}/;' ${{ steps.template.outputs.eks_template_result }}
+          kubectl apply -f ${{ steps.template.outputs.eks_template_result }}
       - name: Purge old cache
         uses: MyAlbum/purge-cache@v2
         with:
