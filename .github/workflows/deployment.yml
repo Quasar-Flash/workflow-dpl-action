@@ -43,6 +43,7 @@ on:
         required: true
       CLUSTER_NAME:
         required: true
+
 jobs:
   Deploying:
     runs-on: ubuntu-latest
@@ -123,8 +124,6 @@ jobs:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: us-east-1
-      - name: Autentica com o AWS ECR
-        uses: aws-actions/amazon-ecr-login@v2
       - name: Instala e configura o kubeclt
         run: aws eks update-kubeconfig --name "${{ secrets.CLUSTER_NAME }}"
       - name: Checkout do repositório de templates
@@ -162,5 +161,5 @@ jobs:
       - name: Purge old cache
         uses: MyAlbum/purge-cache@v2
         with:
-          debug: true # Purge caches by their created time (default)
-          max-age: 604800 # Leave only caches accessed in the last 7 days (default)
+          debug: true
+          max-age: 604800
