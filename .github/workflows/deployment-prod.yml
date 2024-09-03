@@ -53,7 +53,7 @@ jobs:
       url: ${{ inputs.environment_url }}
     steps:
       - name: Verifica se o usuário tem permissão para executar a ação
-        if: ${{ (inputs.release == 'true' || inputs.environment == 'production') }}
+        if: ${{ inputs.release == 'true' }}
         uses: kanga333/json-array-builder@v0.2.1
         id: array
         with:
@@ -61,7 +61,7 @@ jobs:
           separator: space
       - name: Cancela ação desautorizada para o usuário
         uses: andymckay/cancel-action@master
-        if: ${{ inputs.environment != 'production' || (inputs.release == 'true' || inputs.environment == 'production') && contains(steps.array.outputs.build, github.actor) == false }}
+        if: ${{ contains(steps.array.outputs.build, github.actor) == false }}
       - name: Checkout do repositório
         uses: actions/checkout@master
       - name: Instala o Docker Buildx

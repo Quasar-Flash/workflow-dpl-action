@@ -1,4 +1,4 @@
-name: Deployment
+name: Deployment HML
 on:
   workflow_call:
     inputs:
@@ -11,18 +11,18 @@ on:
         type: string
         default: "deployment/"
       environment:
-        default: "production"
+        default: "homologation"
         required: false
         type: string
       environment_url:
         required: true
         type: string
-      release:
+      envfile_to_env:
         default: "false"
         required: false
         type: string
-      envfile_to_env:
-        default: "false"
+      namespace:
+        default: "hml"
         required: false
         type: string
       app_location:
@@ -34,17 +34,18 @@ on:
         required: true
       AWS_SECRET_ACCESS_KEY_DEVOPS:
         required: true
+      AWS_ACCESS_KEY_ID_DEV:
+        required: true
       AWS_DEVOPS_REGION:
+        required: true
+      AWS_ECR_REGION:
+        required: true
+      AWS_SECRET_ACCESS_KEY_DEV:
+        required: true
+      CLUSTER_NAME_DEV:
         required: true
       ECR_REGISTRY_DEVOPS:
         required: true
-      AWS_ACCESS_KEY_ID:
-        required: true
-      AWS_SECRET_ACCESS_KEY:
-        required: true
-      CLUSTER_NAME:
-        required: true
-
 jobs:
   Deploying:
     runs-on: ubuntu-latest
@@ -52,16 +53,6 @@ jobs:
       name: ${{ inputs.environment }}
       url: ${{ inputs.environment_url }}
     steps:
-      - name: Verifica se o usuário tem permissão para executar a ação
-        if: ${{ (inputs.release == 'true' || inputs.environment == 'production') }}
-        uses: kanga333/json-array-builder@v0.2.1
-        id: array
-        with:
-          cmd: echo "${{ vars.DEPLOYMENT_USERS }}"
-          separator: space
-      - name: Cancela ação desautorizada para o usuário
-        uses: andymckay/cancel-action@master
-        if: ${{ inputs.environment != 'production' || (inputs.release == 'true' || inputs.environment == 'production') && contains(steps.array.outputs.build, github.actor) == false }}
       - name: Checkout do repositório
         uses: actions/checkout@master
       - name: Instala o Docker Buildx
@@ -82,6 +73,10 @@ jobs:
       - name: Autentica com o AWS ECR
         id: login-ecr
         uses: aws-actions/amazon-ecr-login@v2
+      - name: Verifica a tag para upload no ECR
+        id: ecr-pretag
+        if: ${{ inputs.environment != 'production' }}
+        run: echo "ecr_pretag=${{ inputs.namespace }}-" >> $GITHUB_OUTPUT
       - name: Extract branch name
         shell: bash
         run: echo "branch=${GITHUB_HEAD_REF:-${GITHUB_REF#refs/heads/}}" >> $GITHUB_OUTPUT
@@ -89,20 +84,14 @@ jobs:
       - name: Atribui variáveis de ambiente para realizar os uploads
         id: vars
         run: |
+          echo "branch_name=${{ steps.extract_branch.outputs.branch }}" >> $GITHUB_OUTPUT
           echo "project_version=$(cat .version)" >> $GITHUB_OUTPUT
           echo "sha=${GITHUB_SHA}" >> $GITHUB_OUTPUT
           echo "repo_name=${GITHUB_REPOSITORY#*\/}" >> $GITHUB_OUTPUT
           echo "ecr_registry=${{ secrets.ECR_REGISTRY_DEVOPS }}" >> $GITHUB_OUTPUT
-          echo "ecr_tag=${{ secrets.ECR_REGISTRY_DEVOPS }}/${GITHUB_REPOSITORY#*\/}:prd-${GITHUB_SHA}" >> $GITHUB_OUTPUT
-          echo "ecr_tag_latest=${{ secrets.ECR_REGISTRY_DEVOPS }}/${GITHUB_REPOSITORY#*\/}:prd-latest" >> $GITHUB_OUTPUT
-          echo "ecr_tag_latest_escaped=${{ secrets.ECR_REGISTRY_DEVOPS }}\/${GITHUB_REPOSITORY#*\/}:prd-${GITHUB_SHA}" >> $GITHUB_OUTPUT
-      - name: Recupera o histórico da versão para a criação da release
-        id: changelog_reader
-        uses: mindsers/changelog-reader-action@v2
-        with:
-          validation_depth: 10
-          version: ${{ steps.vars.outputs.project_version }}
-          path: ./CHANGELOG.md
+          echo "ecr_tag=${{ secrets.ECR_REGISTRY_DEVOPS }}/${GITHUB_REPOSITORY#*\/}:${{ steps.ecr-pretag.outputs.ecr_pretag }}${GITHUB_SHA}" >> $GITHUB_OUTPUT
+          echo "ecr_tag_latest=${{ secrets.ECR_REGISTRY_DEVOPS }}/${GITHUB_REPOSITORY#*\/}:${{ steps.ecr-pretag.outputs.ecr_pretag }}latest" >> $GITHUB_OUTPUT
+          echo "ecr_tag_latest_escaped=${{ secrets.ECR_REGISTRY_DEVOPS }}\/${GITHUB_REPOSITORY#*\/}:${{ steps.ecr-pretag.outputs.ecr_pretag }}${GITHUB_SHA}" >> $GITHUB_OUTPUT
       - name: Configura o arquivo .env estático de acordo com o ambiente
         if: ${{ inputs.envfile_to_env != 'false' }}
         run: |
@@ -117,16 +106,16 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
           build-args: |
-            "BRANCH_NAME=${{ steps.extract_branch.outputs.branch }}"
+            "BRANCH_NAME=${{ steps.vars.outputs.branch_name }}"
             "ENVIRONMENT=production"
-      - name: Configura as credenciais da AWS (Cluster Antigo)
+      - name: Configura as credenciais da AWS (Dev)
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: us-east-1
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID_DEV }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY_DEV }}
+          aws-region: ${{ secrets.AWS_ECR_REGION }}
       - name: Instala e configura o kubeclt
-        run: aws eks update-kubeconfig --name "${{ secrets.CLUSTER_NAME }}"
+        run: aws eks update-kubeconfig --name "${{ secrets.CLUSTER_NAME_DEV }}"
       - name: Checkout do repositório de templates
         uses: actions/checkout@master
         with:
@@ -136,29 +125,19 @@ jobs:
       - name: Resolve template correspondente à aplicação
         id: template
         run: |
-          if test -f "target/services/${{ steps.vars.outputs.repo_name }}/template-prod.yml"; then
-            echo "eks_template=target/services/${{ steps.vars.outputs.repo_name }}/template-prod.yml" >> $GITHUB_OUTPUT
-            echo "eks_template_result=tmp/template-prod.yml" >> $GITHUB_OUTPUT
+          if test -f "target/services/${{ steps.vars.outputs.repo_name }}/template-hml.yml"; then
+            echo "eks_template=target/services/${{ steps.vars.outputs.repo_name }}/template-hml.yml" >> $GITHUB_OUTPUT
+            echo "eks_template_result=tmp/template-hml.yml" >> $GITHUB_OUTPUT
           else
             echo "eks_template=target/services/template.yml" >> $GITHUB_OUTPUT
             echo "eks_template_result=tmp/template.yml" >> $GITHUB_OUTPUT
           fi
       - name: Aplica o template no K8S
+        if: success() || failure()
         run: |
-          ./target/bin/ytt -f ${{ steps.template.outputs.eks_template }} -f target/services/defaults.prod.yml -f target/services/${{ steps.vars.outputs.repo_name }}/values.prod.yml --output-files tmp/
+          ./target/bin/ytt -f ${{ steps.template.outputs.eks_template }} -f target/services/defaults.hml.yml -f target/services/${{ steps.vars.outputs.repo_name }}/values.hml.yml --output-files tmp/
           sed -i '/^\([[:space:]]*image: *\).*/s//\1${{ steps.vars.outputs.ecr_tag_latest_escaped }}/;' ${{ steps.template.outputs.eks_template_result }}
           kubectl apply -f ${{ steps.template.outputs.eks_template_result }}
-      - name: Cria a release no Github para a versão
-        if: ${{ inputs.release == 'true' }}
-        uses: ncipollo/release-action@v1
-        with:
-          tag: v${{ steps.vars.outputs.project_version }}
-          name: v${{ steps.vars.outputs.project_version }}
-          body: ${{ steps.changelog_reader.outputs.changes }}
-          prerelease: ${{ steps.changelog_reader.outputs.status == 'prereleased' }}
-          draft: ${{ steps.changelog_reader.outputs.status == 'unreleased' }}
-          allowUpdates: true
-          token: ${{ secrets.GITHUB_TOKEN }}
       - name: Purge old cache
         uses: MyAlbum/purge-cache@v2
         with:
