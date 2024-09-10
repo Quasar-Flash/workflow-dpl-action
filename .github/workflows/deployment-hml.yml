@@ -1,4 +1,4 @@
-name: Deployment HML
+name: Deploy HML
 on:
   workflow_call:
     inputs:
@@ -30,25 +30,27 @@ on:
         required: false
         type: string
     secrets:
-      AWS_ACCESS_KEY_ID_DEVOPS:
-        required: true
-      AWS_SECRET_ACCESS_KEY_DEVOPS:
-        required: true
-      AWS_ACCESS_KEY_ID_DEV:
+      AWS_DEVOPS_ROLE_NAME:
         required: true
       AWS_DEVOPS_REGION:
         required: true
-      AWS_ECR_REGION:
+      AWS_DEVOPS_ECR:
         required: true
-      AWS_SECRET_ACCESS_KEY_DEV:
+      AWS_DEV_CLUSTER_ARN:
         required: true
-      CLUSTER_NAME_DEV:
+      AWS_DEV_ROLE_NAME:
         required: true
-      ECR_REGISTRY_DEVOPS:
+      AWS_DEV_REGION:
+        required: true
+      AWS_PROD_CLUSTER_NAME:
         required: true
 jobs:
   Deploying:
     runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: write
+      actions: write
     environment:
       name: ${{ inputs.environment }}
       url: ${{ inputs.environment_url }}
@@ -67,9 +69,8 @@ jobs:
       - name: Configura as credenciais da AWS (DevOps)
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID_DEVOPS }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY_DEVOPS }}
           aws-region: ${{ secrets.AWS_DEVOPS_REGION }}
+          role-to-assume: ${{ secrets.AWS_DEVOPS_ROLE_NAME }}
       - name: Autentica com o AWS ECR
         id: login-ecr
         uses: aws-actions/amazon-ecr-login@v2
@@ -88,10 +89,10 @@ jobs:
           echo "project_version=$(cat .version)" >> $GITHUB_OUTPUT
           echo "sha=${GITHUB_SHA}" >> $GITHUB_OUTPUT
           echo "repo_name=${GITHUB_REPOSITORY#*\/}" >> $GITHUB_OUTPUT
-          echo "ecr_registry=${{ secrets.ECR_REGISTRY_DEVOPS }}" >> $GITHUB_OUTPUT
-          echo "ecr_tag=${{ secrets.ECR_REGISTRY_DEVOPS }}/${GITHUB_REPOSITORY#*\/}:${{ steps.ecr-pretag.outputs.ecr_pretag }}${GITHUB_SHA}" >> $GITHUB_OUTPUT
-          echo "ecr_tag_latest=${{ secrets.ECR_REGISTRY_DEVOPS }}/${GITHUB_REPOSITORY#*\/}:${{ steps.ecr-pretag.outputs.ecr_pretag }}latest" >> $GITHUB_OUTPUT
-          echo "ecr_tag_latest_escaped=${{ secrets.ECR_REGISTRY_DEVOPS }}\/${GITHUB_REPOSITORY#*\/}:${{ steps.ecr-pretag.outputs.ecr_pretag }}${GITHUB_SHA}" >> $GITHUB_OUTPUT
+          echo "ecr_registry=${{ secrets.AWS_DEVOPS_ECR }}" >> $GITHUB_OUTPUT
+          echo "ecr_tag=${{ secrets.AWS_DEVOPS_ECR }}/${GITHUB_REPOSITORY#*\/}:${{ steps.ecr-pretag.outputs.ecr_pretag }}${GITHUB_SHA}" >> $GITHUB_OUTPUT
+          echo "ecr_tag_latest=${{ secrets.AWS_DEVOPS_ECR }}/${GITHUB_REPOSITORY#*\/}:${{ steps.ecr-pretag.outputs.ecr_pretag }}latest" >> $GITHUB_OUTPUT
+          echo "ecr_tag_latest_escaped=${{ secrets.AWS_DEVOPS_ECR }}\/${GITHUB_REPOSITORY#*\/}:${{ steps.ecr-pretag.outputs.ecr_pretag }}${GITHUB_SHA}" >> $GITHUB_OUTPUT
       - name: Configura o arquivo .env estático de acordo com o ambiente
         if: ${{ inputs.envfile_to_env != 'false' }}
         run: |
@@ -111,11 +112,11 @@ jobs:
       - name: Configura as credenciais da AWS (Dev)
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID_DEV }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY_DEV }}
-          aws-region: ${{ secrets.AWS_ECR_REGION }}
+          aws-region: ${{ secrets.AWS_DEV_REGION }}
+          role-to-assume: ${{ secrets.AWS_DEV_ROLE_NAME }}
       - name: Instala e configura o kubeclt
-        run: aws eks update-kubeconfig --name "${{ secrets.CLUSTER_NAME_DEV }}"
+        run: |
+          aws eks update-kubeconfig --name ${{ secrets.AWS_PROD_CLUSTER_NAME }} --region ${{ secrets.AWS_DEV_REGION }}
       - name: Checkout do repositório de templates
         uses: actions/checkout@master
         with:

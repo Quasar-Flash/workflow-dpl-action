@@ -1,4 +1,4 @@
-name: Deployment Lambda Prod
+name: Deploy Lambda Prod
 on:
   workflow_call:
     inputs:
@@ -10,11 +10,9 @@ on:
         required: false
         type: string
     secrets:
-      AWS_ACCESS_KEY_ID:
+      AWS_PROD_ROLE_NAME:
         required: true
-      AWS_SECRET_ACCESS_KEY:
-        required: true
-      AWS_ECR_REGION:
+      AWS_PROD_REGION:
         required: true
 jobs:
   build-deploy:
@@ -23,6 +21,10 @@ jobs:
     environment:
       name: Development
       url: ${{ inputs.url }}
+    permissions:
+      id-token: write
+      contents: write
+      actions: write
     steps:
       - name: Verifica se o usuário tem permissão para executar a ação
         if: ${{ (inputs.release == 'true' || inputs.environment == 'production') }}
@@ -56,9 +58,8 @@ jobs:
       - name: Credentials configuration
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ secrets.AWS_ECR_REGION }}
+          aws-region: ${{ secrets.AWS_PROD_REGION }}
+          role-to-assume: ${{ secrets.AWS_PROD_ROLE_NAME }}
       - name: SAM Build
         run: make build_prod
       - name: SAM Deploy
@@ -77,5 +78,5 @@ jobs:
       - name: Purge old cache
         uses: MyAlbum/purge-cache@v2
         with:
-          debug: true # Purge caches by their created time (default)
-          max-age: 604800 # Leave only caches accessed in the last 7 days (default)
+          debug: true
+          max-age: 604800

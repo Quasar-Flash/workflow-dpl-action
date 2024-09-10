@@ -1,4 +1,4 @@
-name: Deployment
+name: Deploy PRD
 on:
   workflow_call:
     inputs:
@@ -30,24 +30,27 @@ on:
         required: false
         type: string
     secrets:
-      AWS_ACCESS_KEY_ID_DEVOPS:
-        required: true
-      AWS_SECRET_ACCESS_KEY_DEVOPS:
+      AWS_DEVOPS_ROLE_NAME:
         required: true
       AWS_DEVOPS_REGION:
         required: true
-      ECR_REGISTRY_DEVOPS:
+      AWS_DEVOPS_ECR:
         required: true
-      AWS_ACCESS_KEY_ID:
+      AWS_PROD_CLUSTER_ARN:
         required: true
-      AWS_SECRET_ACCESS_KEY:
+      AWS_PROD_ROLE_NAME:
         required: true
-      CLUSTER_NAME:
+      AWS_PROD_REGION:
         required: true
-
+      AWS_PROD_CLUSTER_NAME:
+        required: true
 jobs:
   Deploying:
     runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: write
+      actions: write
     environment:
       name: ${{ inputs.environment }}
       url: ${{ inputs.environment_url }}
@@ -76,9 +79,8 @@ jobs:
       - name: Configura as credenciais da AWS (DevOps)
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID_DEVOPS }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY_DEVOPS }}
           aws-region: ${{ secrets.AWS_DEVOPS_REGION }}
+          role-to-assume: ${{ secrets.AWS_DEVOPS_ROLE_NAME }}
       - name: Autentica com o AWS ECR
         id: login-ecr
         uses: aws-actions/amazon-ecr-login@v2
@@ -89,13 +91,14 @@ jobs:
       - name: Atribui variáveis de ambiente para realizar os uploads
         id: vars
         run: |
+          echo "branch_name=${{ steps.extract_branch.outputs.branch }}" >> $GITHUB_OUTPUT
           echo "project_version=$(cat .version)" >> $GITHUB_OUTPUT
           echo "sha=${GITHUB_SHA}" >> $GITHUB_OUTPUT
           echo "repo_name=${GITHUB_REPOSITORY#*\/}" >> $GITHUB_OUTPUT
-          echo "ecr_registry=${{ secrets.ECR_REGISTRY_DEVOPS }}" >> $GITHUB_OUTPUT
-          echo "ecr_tag=${{ secrets.ECR_REGISTRY_DEVOPS }}/${GITHUB_REPOSITORY#*\/}:prd-${GITHUB_SHA}" >> $GITHUB_OUTPUT
-          echo "ecr_tag_latest=${{ secrets.ECR_REGISTRY_DEVOPS }}/${GITHUB_REPOSITORY#*\/}:prd-latest" >> $GITHUB_OUTPUT
-          echo "ecr_tag_latest_escaped=${{ secrets.ECR_REGISTRY_DEVOPS }}\/${GITHUB_REPOSITORY#*\/}:prd-${GITHUB_SHA}" >> $GITHUB_OUTPUT
+          echo "ecr_registry=${{ secrets.AWS_DEVOPS_ECR }}" >> $GITHUB_OUTPUT
+          echo "ecr_tag=${{ secrets.AWS_DEVOPS_ECR }}/${GITHUB_REPOSITORY#*\/}:prd-${GITHUB_SHA}" >> $GITHUB_OUTPUT
+          echo "ecr_tag_latest=${{ secrets.AWS_DEVOPS_ECR }}/${GITHUB_REPOSITORY#*\/}:prd-latest" >> $GITHUB_OUTPUT
+          echo "ecr_tag_latest_escaped=${{ secrets.AWS_DEVOPS_ECR }}\/${GITHUB_REPOSITORY#*\/}:prd-${GITHUB_SHA}" >> $GITHUB_OUTPUT
       - name: Recupera o histórico da versão para a criação da release
         id: changelog_reader
         uses: mindsers/changelog-reader-action@v2
@@ -117,16 +120,16 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
           build-args: |
-            "BRANCH_NAME=${{ steps.extract_branch.outputs.branch }}"
+            "BRANCH_NAME=${{ steps.vars.outputs.branch_name }}"
             "ENVIRONMENT=production"
-      - name: Configura as credenciais da AWS (Cluster Antigo)
+      - name: Configura as credenciais da AWS (Prod)
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: us-east-1
+          aws-region: ${{ secrets.AWS_PROD_REGION }}
+          role-to-assume: ${{ secrets.AWS_PROD_ROLE_NAME }}
       - name: Instala e configura o kubeclt
-        run: aws eks update-kubeconfig --name "${{ secrets.CLUSTER_NAME }}"
+        run: |
+          aws eks update-kubeconfig --name ${{ secrets.AWS_PROD_CLUSTER_NAME }} --region ${{ secrets.AWS_PROD_REGION }}
       - name: Checkout do repositório de templates
         uses: actions/checkout@master
         with:
@@ -144,6 +147,7 @@ jobs:
             echo "eks_template_result=tmp/template.yml" >> $GITHUB_OUTPUT
           fi
       - name: Aplica o template no K8S
+        if: success() || failure()
         run: |
           ./target/bin/ytt -f ${{ steps.template.outputs.eks_template }} -f target/services/defaults.prod.yml -f target/services/${{ steps.vars.outputs.repo_name }}/values.prod.yml --output-files tmp/
           sed -i '/^\([[:space:]]*image: *\).*/s//\1${{ steps.vars.outputs.ecr_tag_latest_escaped }}/;' ${{ steps.template.outputs.eks_template_result }}
