@@ -116,7 +116,7 @@ jobs:
           role-to-assume: ${{ secrets.AWS_DEV_ROLE_NAME }}
       - name: Instala e configura o kubeclt
         run: |
-          aws eks update-kubeconfig --name ${{ secrets.AWS_PROD_CLUSTER_NAME }} --region ${{ secrets.AWS_DEV_REGION }}
+          aws eks update-kubeconfig --name ${{ secrets.AWS_DEV_CLUSTER_NAME }} --region ${{ secrets.AWS_DEV_REGION }}
       - name: Checkout do repositório de templates
         uses: actions/checkout@master
         with:
