@@ -1,0 +1,112 @@
+name: Build Python
+on:
+  workflow_dispatch:
+  workflow_call:
+    inputs:
+      app_path:
+        required: false
+        type: string
+        default: "app"
+      changelog_path:
+        required: false
+        type: string
+        default: "."
+    secrets:
+      PUSHER_PAT:
+        required: true
+  push:
+    branches:
+      - dev
+  pull_request:
+    branches:
+      - "*"
+    paths-ignore:
+      - "**.md"
+jobs:
+  Tests:
+    name: Unit Tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.PUSHER_PAT }}
+      - run: |
+          git config user.name github-actions[bot]
+          git config user.email github-actions[bot]@users.noreply.github.com
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Cache poetry dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/pypoetry
+            ~/.cache/pip
+          key: ${{ runner.os }}-poetry-${{ hashFiles('**/poetry.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-poetry-
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get install -y libxml2-utils
+          python -m pip install --upgrade pip
+          pip install poetry
+          cd ${{ inputs.app_path }} && poetry install --no-root
+
+      - name: Run tests
+        id: tests
+        run: |
+          cd ${{ inputs.app_path }} && poetry run pytest --cov-fail-under=0
+          coverage_percentage=$(xmllint --xpath "string(//coverage/@line-rate)" coverage.xml)
+          coverage_percentage=$(echo "$coverage_percentage * 100" | bc)
+          formatted_coverage=$(printf "%.1f" "$coverage_percentage")
+          echo "Coverage Percentage: $formatted_coverage"
+          echo "coverage_percentage=$formatted_coverage" >> $GITHUB_ENV
+
+      - name: Create coverage badge
+        uses: emibcn/badge-action@v2.0.2
+        with:
+          label: "Coverage"
+          status: "${{ env.coverage_percentage }}%"
+          color: "31C754"
+          label-color: "414951"
+          path: ".github/badges/coverage.svg"
+
+      - name: Check for badge changes
+        id: check_for_badge_changes
+        run: |
+          if git diff --quiet .github/badges/coverage.svg; then
+            echo "::set-output name=changed::false"
+          else
+            echo "::set-output name=changed::true"
+          fi
+
+      - name: Commit changes if badge updated
+        if: steps.check_for_badge_changes.outputs.changed == 'true'
+        env:
+          GITHUB_TOKEN: ${{ secrets.PUSHER_PAT }}
+        run: |
+          git add .github/badges/coverage.svg
+          git commit -m "docs: update coverage badge [skip ci]"
+          git push -f
+        continue-on-error: true
+
+  Changelog:
+    name: Changelog Tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Verifica arquivo de changelog
+        id: changelog_reader
+        uses: mindsers/changelog-reader-action@v2
+        with:
+          validation_level: "error"
+          validation_depth: 5
+          version: ${{ steps.vars.outputs.project_version }}
+          path: ${{ inputs.changelog_path }}/CHANGELOG.md

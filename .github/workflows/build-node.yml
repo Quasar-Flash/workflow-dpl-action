@@ -1,0 +1,76 @@
+name: Build Node
+on:
+  workflow_dispatch:
+  workflow_call:
+    inputs:
+      app_path:
+        required: false
+        type: string
+        default: "."
+      changelog_path:
+        required: false
+        type: string
+        default: "."
+    secrets:
+      PUSHER_PAT:
+        required: true
+  push:
+    branches:
+      - dev
+  pull_request:
+    branches:
+      - "*"
+    paths-ignore:
+      - "**.md"
+jobs:
+  Lint:
+    name: Linter Check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.PUSHER_PAT }}
+          fetch-depth: 0
+      - name: Read Node.js version from package.json
+        id: get-node-version
+        run: |
+          FILE_PATH=${{ inputs.app_path }}/package.json
+          NODE_VERSION=$(jq -r '.engines.node' $FILE_PATH)
+          echo "NODE_VERSION=${NODE_VERSION}" >> $GITHUB_ENV
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "${{ env.NODE_VERSION }}"
+      - name: Cache Node.js modules
+        uses: actions/cache@v4
+        with:
+          path: node_modules
+          key: ${{ runner.os }}-node-${{ hashFiles('**/yarn.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-node-
+      - name: Installing packages
+        working-directory: ${{ inputs.app_path }}/
+        run: yarn
+      - name: Prettier Check
+        working-directory: ${{ inputs.app_path }}/
+        run: yarn prettier
+      - name: Next Lint (ESLint)
+        working-directory: ${{ inputs.app_path }}/
+        run: yarn lint
+
+  Changelog:
+    name: Changelog Tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Verifica arquivo de changelog
+        id: changelog_reader
+        uses: mindsers/changelog-reader-action@v2
+        with:
+          validation_level: "error"
+          validation_depth: 5
+          version: ${{ steps.vars.outputs.project_version }}
+          path: ${{ inputs.changelog_path }}/CHANGELOG.md
