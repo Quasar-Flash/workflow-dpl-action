@@ -60,7 +60,7 @@ jobs:
       - name: Run tests
         id: tests
         run: |
-          cd ${{ inputs.app_path }} && poetry run pytest --cov-fail-under=0
+          cd ${{ inputs.app_path }} && poetry run pytest -n auto --cov-fail-under=0
           coverage_percentage=$(xmllint --xpath "string(//coverage/@line-rate)" coverage.xml)
           coverage_percentage=$(echo "$coverage_percentage * 100" | bc)
           formatted_coverage=$(printf "%.1f" "$coverage_percentage")
