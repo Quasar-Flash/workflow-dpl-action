@@ -35,10 +35,18 @@ jobs:
           git config user.name github-actions[bot]
           git config user.email github-actions[bot]@users.noreply.github.com
 
+      - name: Extract python version from pyproject.toml
+        id: vars
+        run: |
+          cd app
+          PYTHON_VERSION=$(grep -Po '(?<=python = ")[^"]*' pyproject.toml)
+          echo "Python version: $PYTHON_VERSION"
+          echo "PYTHON_VERSION=$PYTHON_VERSION" >> $GITHUB_ENV
+
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: "3.12"
+          python-version: ${{ env.PYTHON_VERSION }}
 
       - name: Cache poetry dependencies
         uses: actions/cache@v4
@@ -60,7 +68,8 @@ jobs:
       - name: Run tests
         id: tests
         run: |
-          cd ${{ inputs.app_path }} && poetry run pytest -n auto --cov-fail-under=0
+          cd ${{ inputs.app_path }}
+          PYTHONPATH=. poetry run pytest -n auto --cov-fail-under=0
           coverage_percentage=$(xmllint --xpath "string(//coverage/@line-rate)" coverage.xml)
           coverage_percentage=$(echo "$coverage_percentage * 100" | bc)
           formatted_coverage=$(printf "%.1f" "$coverage_percentage")
