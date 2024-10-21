@@ -46,6 +46,7 @@ on:
         required: true
 jobs:
   Deploying:
+    if: ${{ contains(fromJSON(vars.DEPLOYMENT_USERS), github.actor) == true }}
     runs-on: ubuntu-latest
     permissions:
       id-token: write
@@ -55,16 +56,6 @@ jobs:
       name: ${{ inputs.environment }}
       url: ${{ inputs.environment_url }}
     steps:
-      - name: Verifica se o usuário tem permissão para executar a ação
-        if: ${{ inputs.release == 'true' }}
-        uses: kanga333/json-array-builder@v0.2.1
-        id: array
-        with:
-          cmd: echo "${{ vars.DEPLOYMENT_USERS }}"
-          separator: space
-      - name: Cancela ação desautorizada para o usuário
-        uses: andymckay/cancel-action@master
-        if: ${{ contains(steps.array.outputs.build, github.actor) == false }}
       - name: Checkout do repositório
         uses: actions/checkout@master
       - name: Instala o Docker Buildx

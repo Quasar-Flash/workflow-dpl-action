@@ -5,6 +5,10 @@ on:
       url:
         required: false
         type: string
+      environment:
+        default: "development"
+        required: false
+        type: string
     secrets:
       AWS_DEV_ROLE_NAME:
         required: true
@@ -15,7 +19,7 @@ jobs:
     name: Deploying
     runs-on: ubuntu-latest
     environment:
-      name: Development
+      name: ${{ inputs.environment }}
       url: ${{ inputs.url }}
     permissions:
       id-token: write

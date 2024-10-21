@@ -9,6 +9,10 @@ on:
       url:
         required: false
         type: string
+      environment:
+        default: "production"
+        required: false
+        type: string
     secrets:
       AWS_PROD_ROLE_NAME:
         required: true
@@ -16,26 +20,17 @@ on:
         required: true
 jobs:
   build-deploy:
+    if: ${{ contains(fromJSON(vars.DEPLOYMENT_USERS), github.actor) == true }}
     name: Deploying
     runs-on: ubuntu-latest
     environment:
-      name: Development
+      name: ${{ inputs.environment }}
       url: ${{ inputs.url }}
     permissions:
       id-token: write
       contents: write
       actions: write
     steps:
-      - name: Verifica se o usuário tem permissão para executar a ação
-        if: ${{ (inputs.release == 'true' || inputs.environment == 'production') }}
-        uses: kanga333/json-array-builder@main
-        id: array
-        with:
-          cmd: echo "${{ vars.DEPLOYMENT_USERS }}"
-          separator: space
-      - name: Cancela ação desautorizada para o usuário
-        uses: andymckay/cancel-action@master
-        if: ${{ (inputs.release == 'true' || inputs.environment == 'production') && contains(steps.array.outputs.build, github.actor) == false }}
       - name: Checkout
         uses: actions/checkout@master
       - name: Atribui variáveis de ambiente para realizar os uploads

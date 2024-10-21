@@ -41,12 +41,12 @@ jobs:
           cd app
           PYTHON_VERSION=$(grep -Po '(?<=python = ")[^"]*' pyproject.toml)
           echo "Python version: $PYTHON_VERSION"
-          echo "PYTHON_VERSION=$PYTHON_VERSION" >> $GITHUB_ENV
+          echo "PYTHON_VERSION=${PYTHON_VERSION}" >> $GITHUB_OUTPUT
 
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: ${{ env.PYTHON_VERSION }}
+          python-version: ${{ steps.vars.outputs.PYTHON_VERSION }}
 
       - name: Cache poetry dependencies
         uses: actions/cache@v4
@@ -80,7 +80,7 @@ jobs:
         uses: emibcn/badge-action@v2.0.2
         with:
           label: "Coverage"
-          status: "${{ env.coverage_percentage }}%"
+          status: "${{ steps.tests.outputs.coverage_percentage }}%"
           color: "31C754"
           label-color: "414951"
           path: ".github/badges/coverage.svg"
@@ -110,7 +110,10 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-
+      - name: Get project version
+        id: vars
+        run: |
+          echo "project_version=$(cat .version)" >> $GITHUB_OUTPUT
       - name: Verifica arquivo de changelog
         id: changelog_reader
         uses: mindsers/changelog-reader-action@v2
