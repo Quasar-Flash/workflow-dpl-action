@@ -11,6 +11,18 @@ on:
         required: false
         type: string
         default: "."
+      run_lint:
+        required: false
+        type: boolean
+        default: false
+      run_pytest:
+        required: false
+        type: boolean
+        default: true
+      run_changelog:
+        required: false
+        type: boolean
+        default: true
     secrets:
       PUSHER_PAT:
         required: true
@@ -23,7 +35,8 @@ on:
     paths-ignore:
       - "**.md"
 jobs:
-  Tests:
+  Test:
+    if: ${{ inputs.run_changelog == true }}
     name: Unit Tests
     runs-on: ubuntu-latest
     steps:
@@ -60,10 +73,14 @@ jobs:
 
       - name: Install dependencies
         run: |
+          cd ${{ inputs.app_path }}
           sudo apt-get install -y libxml2-utils
-          python -m pip install --upgrade pip
           pip install poetry
-          cd ${{ inputs.app_path }} && poetry install --no-root
+          if grep -q '\[tool.poetry.group.test.dependencies\]' pyproject.toml; then
+            poetry install --no-root --with test
+          else
+            poetry install --no-root --with dev
+          fi
 
       - name: Run tests
         id: tests
@@ -104,7 +121,57 @@ jobs:
           git push -f
         continue-on-error: true
 
+  Lint:
+    if: ${{ inputs.run_lint == true }}
+    name: Linter Check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.PUSHER_PAT }}
+      - run: |
+          git config user.name github-actions[bot]
+          git config user.email github-actions[bot]@users.noreply.github.com
+
+      - name: Extract python version from pyproject.toml
+        id: vars
+        run: |
+          cd app
+          PYTHON_VERSION=$(grep -Po '(?<=python = ")[^"]*' pyproject.toml)
+          echo "Python version: $PYTHON_VERSION"
+          echo "PYTHON_VERSION=${PYTHON_VERSION}" >> $GITHUB_OUTPUT
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ steps.vars.outputs.PYTHON_VERSION }}
+
+      - name: Cache dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/pypoetry
+            ~/.cache/pip
+            ~/.cache/pre-commit
+          key: ${{ runner.os }}-poetry-${{ hashFiles('**/.pre-commit-config.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-pre-commit-
+
+      - name: Install dependencies
+        run: |
+          cd ${{ inputs.app_path }}
+          PC_VERSION=$(grep 'pre-commit' pyproject.toml | awk -F ' = ' '{gsub(/^[ \t]+|[ \t]+$/, "", $2); print $2}' | tr -d '"' | sed 's/^\^//')
+          pip install pre-commit==$PC_VERSION
+
+      - name: Run pre-commit bundle
+        run: |
+          cd ${{ inputs.app_path }}
+          sed -i '1s/^/fail_fast: true\n/' .pre-commit-config.yaml
+          pre-commit run --all-files --hook-stage manual
+
   Changelog:
+    if: ${{ inputs.run_changelog == true }}
     name: Changelog Tests
     runs-on: ubuntu-latest
     steps:
