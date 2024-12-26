@@ -52,7 +52,7 @@ jobs:
         id: vars
         run: |
           cd app
-          PYTHON_VERSION=$(grep -Po '(?<=python = ")[^"]*' pyproject.toml)
+          PYTHON_VERSION=$(grep -Po '^\s*python\s*=\s*"\K[^"]+' pyproject.toml)
           echo "Python version: $PYTHON_VERSION"
           echo "PYTHON_VERSION=${PYTHON_VERSION}" >> $GITHUB_OUTPUT
 
