@@ -7,6 +7,10 @@ on:
         required: false
         type: string
         default: "app"
+      deps_path:
+        required: false
+        type: string
+        default: "app"
       changelog_path:
         required: false
         type: string
@@ -51,7 +55,7 @@ jobs:
       - name: Extract python version from pyproject.toml
         id: vars
         run: |
-          cd app
+          cd ${{ inputs.app_path }}
           PYTHON_VERSION=$(grep -Po '^\s*python\s*=\s*"\K[^"]+' pyproject.toml)
           echo "Python version: $PYTHON_VERSION"
           echo "PYTHON_VERSION=${PYTHON_VERSION}" >> $GITHUB_OUTPUT
@@ -73,20 +77,29 @@ jobs:
 
       - name: Install dependencies
         run: |
-          cd ${{ inputs.app_path }}
+          cd ${{ inputs.deps_path }}
           sudo apt-get install -y libxml2-utils
-          pip install poetry
-          if grep -q '\[tool.poetry.group.test.dependencies\]' pyproject.toml; then
-            poetry install --no-root --with test
+          if [[ -f pyproject.toml ]] && grep -q '\[tool.poetry\]' pyproject.toml; then
+            pip install poetry
+            if grep -q '\[tool.poetry.group.test.dependencies\]' pyproject.toml; then
+              poetry install --no-root --with test
+            else
+              poetry install --no-root --with dev
+            fi
           else
-            poetry install --no-root --with dev
+            pip install -r requirements.txt
+            pip install -r requirements-test.txt
           fi
 
       - name: Run tests
         id: tests
         run: |
           cd ${{ inputs.app_path }}
-          PYTHONPATH=. poetry run pytest -n auto --cov-fail-under=0
+          if grep -q '\[tool.poetry\]' pyproject.toml; then
+            PYTHONPATH=. poetry run pytest -n auto --cov-fail-under=0
+          else
+            pytest -n auto --cov-fail-under=0
+          fi
           coverage_percentage=$(xmllint --xpath "string(//coverage/@line-rate)" coverage.xml)
           coverage_percentage=$(echo "$coverage_percentage * 100" | bc)
           formatted_coverage=$(printf "%.1f" "$coverage_percentage")
@@ -137,7 +150,7 @@ jobs:
       - name: Extract python version from pyproject.toml
         id: vars
         run: |
-          cd app
+          cd ${{ inputs.app_path }}
           PYTHON_VERSION=$(grep -Po '(?<=python = ")[^"]*' pyproject.toml)
           echo "Python version: $PYTHON_VERSION"
           echo "PYTHON_VERSION=${PYTHON_VERSION}" >> $GITHUB_OUTPUT
@@ -159,10 +172,7 @@ jobs:
             ${{ runner.os }}-pre-commit-
 
       - name: Install dependencies
-        run: |
-          cd ${{ inputs.app_path }}
-          PC_VERSION=$(grep 'pre-commit' pyproject.toml | awk -F ' = ' '{gsub(/^[ \t]+|[ \t]+$/, "", $2); print $2}' | tr -d '"' | sed 's/^\^//')
-          pip install pre-commit==$PC_VERSION
+        run: pip install pre-commit
 
       - name: Run pre-commit bundle
         run: |
