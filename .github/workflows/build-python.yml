@@ -104,7 +104,7 @@ jobs:
           coverage_percentage=$(echo "$coverage_percentage * 100" | bc)
           formatted_coverage=$(printf "%.1f" "$coverage_percentage")
           echo "Coverage Percentage: $formatted_coverage"
-          echo "coverage_percentage=$formatted_coverage" >> $GITHUB_ENV
+          echo "coverage_percentage=${formatted_coverage}" >> $GITHUB_OUTPUT
 
       - name: Create coverage badge
         uses: emibcn/badge-action@v2.0.2
