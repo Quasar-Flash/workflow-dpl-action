@@ -83,6 +83,7 @@ jobs:
         id: vars
         run: |
           echo "branch_name=${{ steps.extract_branch.outputs.branch }}" >> $GITHUB_OUTPUT
+          echo "release_timestamp=$(date +%s)" >> $GITHUB_OUTPUT
           echo "project_version=$(cat .version)" >> $GITHUB_OUTPUT
           echo "sha=${GITHUB_SHA}" >> $GITHUB_OUTPUT
           echo "repo_name=${GITHUB_REPOSITORY#*\/}" >> $GITHUB_OUTPUT
@@ -137,6 +138,13 @@ jobs:
             echo "eks_template=target/services/template.yml" >> $GITHUB_OUTPUT
             echo "eks_template_result=tmp/template.yml" >> $GITHUB_OUTPUT
           fi
+      - name: Atualiza secret comum com o Parameter Store
+        run: |
+          kubectl apply -f "target/services/envs.prod.yml"
+          kubectl annotate externalsecret.external-secrets.io "common-parameters" -n prod force-sync="${{ steps.vars.outputs.release_timestamp }}" --overwrite
+      - name: Atualiza secret da aplicação com o Parameter Store
+        run: |
+          kubectl annotate externalsecret.external-secrets.io "${{ steps.vars.outputs.repo_name }}-parameters" -n prod force-sync="${{ steps.vars.outputs.release_timestamp }}" --overwrite
       - name: Aplica o template no K8S
         if: success() || failure()
         run: |
