@@ -105,10 +105,24 @@ jobs:
           python3 -m pip install --quiet pyyaml
       - name: Snapshot SSM real DEV (filtro de orphans)
         run: |
-          aws ssm describe-parameters --max-items 10000 \
-            --query 'Parameters[].Name' --output text 2>/dev/null \
-            | tr '\t' '\n' | sort -u > /tmp/ssm-dev-real.txt
+          : > /tmp/ssm-dev-real.txt
+          NEXT=""
+          PAGE=0
+          while : ; do
+            if [ -z "$NEXT" ]; then
+              OUT=$(aws ssm describe-parameters --max-results 50)
+            else
+              OUT=$(aws ssm describe-parameters --max-results 50 --next-token "$NEXT")
+            fi
+            echo "$OUT" | jq -r '.Parameters[].Name' >> /tmp/ssm-dev-real.txt
+            NEXT=$(echo "$OUT" | jq -r '.NextToken // empty')
+            PAGE=$((PAGE+1))
+            [ -z "$NEXT" ] && break
+            [ "$PAGE" -ge 500 ] && { echo "ERRO: pagination excedeu 500 paginas, abortando"; exit 1; }
+          done
+          sort -u /tmp/ssm-dev-real.txt -o /tmp/ssm-dev-real.txt
           wc -l /tmp/ssm-dev-real.txt
+          echo "Paginas processadas: $PAGE"
       - name: Preprocessa envs.dev.yml + ssm_real para ytt data values
         run: |
           python3 <<'PYEOF'
