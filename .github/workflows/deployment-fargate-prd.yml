@@ -116,6 +116,9 @@ jobs:
         run: |
           python3 -m pip install --quiet pyyaml
       - name: Snapshot SSM real PRD (filtro de orphans)
+        env:
+          AWS_RETRY_MODE: adaptive
+          AWS_MAX_ATTEMPTS: "12"
         run: |
           : > /tmp/ssm-prd-real.txt
           NEXT=""
@@ -131,6 +134,8 @@ jobs:
             PAGE=$((PAGE+1))
             [ -z "$NEXT" ] && break
             [ "$PAGE" -ge 500 ] && { echo "ERRO: pagination excedeu 500 paginas, abortando"; exit 1; }
+            # spread across parallel pipelines (40 TPS standard limit, adaptive retry handles bursts)
+            sleep 0.3
           done
           sort -u /tmp/ssm-prd-real.txt -o /tmp/ssm-prd-real.txt
           wc -l /tmp/ssm-prd-real.txt
