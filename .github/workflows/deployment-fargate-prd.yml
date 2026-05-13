@@ -115,14 +115,33 @@ jobs:
       - name: Instala dependencias Python para preprocess
         run: |
           python3 -m pip install --quiet pyyaml
-      - name: Snapshot SSM real PRD (filtro de orphans)
+      - name: Coleta SSM (valores /common/* + nomes globais para orphan filter)
         env:
           AWS_RETRY_MODE: adaptive
           AWS_MAX_ATTEMPTS: "12"
         run: |
-          : > /tmp/ssm-prd-real.txt
+          echo "[]" > /tmp/common-values.json
           NEXT=""
           PAGE=0
+          ACCUM="[]"
+          while : ; do
+            if [ -z "$NEXT" ]; then
+              OUT=$(aws ssm get-parameters-by-path --path /common --recursive --with-decryption --max-results 10)
+            else
+              OUT=$(aws ssm get-parameters-by-path --path /common --recursive --with-decryption --max-results 10 --next-token "$NEXT")
+            fi
+            ACCUM=$(echo "$ACCUM" "$OUT" | jq -s '.[0] + (.[1].Parameters // [])')
+            NEXT=$(echo "$OUT" | jq -r '.NextToken // empty')
+            PAGE=$((PAGE+1))
+            [ -z "$NEXT" ] && break
+            [ "$PAGE" -ge 500 ] && { echo "ERRO: paginacao /common excedeu 500 paginas"; exit 1; }
+            sleep 0.3
+          done
+          echo "$ACCUM" > /tmp/common-values.json
+          echo "common SSM values: $(jq 'length' /tmp/common-values.json)"
+
+          : > /tmp/ssm-prd-real.txt
+          NEXT=""
           while : ; do
             if [ -z "$NEXT" ]; then
               OUT=$(aws ssm describe-parameters --max-results 50)
@@ -131,15 +150,51 @@ jobs:
             fi
             echo "$OUT" | jq -r '.Parameters[].Name' >> /tmp/ssm-prd-real.txt
             NEXT=$(echo "$OUT" | jq -r '.NextToken // empty')
-            PAGE=$((PAGE+1))
             [ -z "$NEXT" ] && break
-            [ "$PAGE" -ge 500 ] && { echo "ERRO: pagination excedeu 500 paginas, abortando"; exit 1; }
-            # spread across parallel pipelines (40 TPS standard limit, adaptive retry handles bursts)
             sleep 0.3
           done
           sort -u /tmp/ssm-prd-real.txt -o /tmp/ssm-prd-real.txt
-          wc -l /tmp/ssm-prd-real.txt
-          echo "Paginas processadas: $PAGE"
+          echo "ssm_real total: $(wc -l < /tmp/ssm-prd-real.txt)"
+
+      - name: Gera /tmp/common.env (envs.prod.yml secretKey -> valor SSM) e upload S3
+        id: envfile
+        env:
+          BUCKET: qflash-prd-fargate-envfiles
+        run: |
+          python3 <<'PYEOF'
+          import yaml, json
+          with open("target/services/envs.prod.yml") as f:
+              lines = [l for l in f if not l.lstrip().startswith("#@")]
+          d = yaml.safe_load("".join(lines))
+          items = d.get("spec",{}).get("data",[])
+          values = {p["Name"]: p["Value"] for p in json.load(open("/tmp/common-values.json"))}
+          lines_out = []
+          skipped = []
+          for it in items:
+              key = it["remoteRef"]["key"]
+              name = it["secretKey"]
+              if not key.startswith("/common/"):
+                  continue
+              v = values.get(key)
+              if v is None:
+                  skipped.append((name, key, "missing-ssm")); continue
+              if "\n" in v or "\r" in v:
+                  skipped.append((name, key, "multiline")); continue
+              if v == "":
+                  skipped.append((name, key, "empty")); continue
+              lines_out.append(f"{name}={v}")
+          with open("/tmp/common.env","w") as fp:
+              fp.write("\n".join(lines_out) + "\n")
+          print(f"common.env: {len(lines_out)} vars, {len(skipped)} puladas")
+          for s in skipped:
+              print(f"  SKIP: {s[0]} ({s[1]}) reason={s[2]}")
+          PYEOF
+          size=$(wc -c < /tmp/common.env)
+          echo "common.env size: $size bytes"
+          aws s3 cp /tmp/common.env "s3://$BUCKET/common.env" --no-progress
+          ENVFILE_ARN="arn:aws:s3:::$BUCKET/common.env"
+          echo "envfile_arn=$ENVFILE_ARN" >> "$GITHUB_OUTPUT"
+          echo "ENVFILE_ARN=$ENVFILE_ARN"
       - name: Preprocessa envs.prod.yml + ssm_real para ytt data values
         run: |
           python3 <<'PYEOF'
@@ -174,6 +229,7 @@ jobs:
             -f /tmp/envs_common_data.yml \
             -f /tmp/ssm_real_data.yml \
             --data-value image_uri="${{ steps.vars.outputs.ecr_tag }}" \
+            --data-value envfile_arn="${{ steps.envfile.outputs.envfile_arn }}" \
             > /tmp/td.yaml
           python3 -c "import yaml,json; d=yaml.safe_load(open('/tmp/td.yaml')); json.dump(d, open('/tmp/td.json','w'))"
           echo "Task Definition tamanho: $(wc -c < /tmp/td.json) bytes (limite 65536)"
