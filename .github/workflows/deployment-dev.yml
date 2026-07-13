@@ -1,4 +1,4 @@
-name: Deploy DEV
+name: Deploy Fargate DEV
 on:
   workflow_call:
     inputs:
@@ -6,12 +6,8 @@ on:
         required: false
         type: string
         default: "."
-      templates_location:
-        required: false
-        type: string
-        default: "deployment/"
       environment:
-        default: "development"
+        default: "fargate-dev"
         required: false
         type: string
       environment_url:
@@ -21,28 +17,16 @@ on:
         default: "false"
         required: false
         type: string
-      namespace:
-        default: "dev"
-        required: false
-        type: string
       app_location:
         default: "app/"
         required: false
         type: string
     secrets:
-      AWS_DEVOPS_ROLE_NAME:
+      AWS_FARGATE_DEVOPS_ROLE_NAME:
         required: true
-      AWS_DEVOPS_REGION:
+      AWS_FARGATE_DEV_ROLE_NAME:
         required: true
-      AWS_DEVOPS_ECR:
-        required: true
-      AWS_DEV_CLUSTER_ARN:
-        required: true
-      AWS_DEV_CLUSTER_NAME:
-        required: true
-      AWS_DEV_ROLE_NAME:
-        required: true
-      AWS_DEV_REGION:
+      EKS_TEMPLATES_CHECKOUT_PAT:
         required: true
 jobs:
   Deploying:
@@ -55,7 +39,7 @@ jobs:
       name: ${{ inputs.environment }}
       url: ${{ inputs.environment_url }}
     steps:
-      - name: Checkout do repositório
+      - name: Checkout do repositorio
         uses: actions/checkout@master
       - name: Instala o Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -66,39 +50,35 @@ jobs:
           key: ${{ runner.os }}-buildx-${{ github.sha }}
           restore-keys: |
             ${{ runner.os }}-buildx-
-      - name: Configura as credenciais da AWS (DevOps)
+      - name: Configura as credenciais da AWS (DevOps - us-east-1)
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          aws-region: ${{ secrets.AWS_DEVOPS_REGION }}
-          role-to-assume: ${{ secrets.AWS_DEVOPS_ROLE_NAME }}
-      - name: Autentica com o AWS ECR
+          aws-region: us-east-1
+          role-to-assume: ${{ secrets.AWS_FARGATE_DEVOPS_ROLE_NAME }}
+      - name: Autentica com o AWS ECR (us-east-1)
         id: login-ecr
         uses: aws-actions/amazon-ecr-login@v2
-      - name: Verifica a tag para upload no ECR
-        id: ecr-pretag
-        if: ${{ inputs.environment != 'production' }}
-        run: echo "ecr_pretag=${{ inputs.namespace }}-" >> $GITHUB_OUTPUT
       - name: Extract branch name
         shell: bash
         run: echo "branch=${GITHUB_HEAD_REF:-${GITHUB_REF#refs/heads/}}" >> $GITHUB_OUTPUT
         id: extract_branch
-      - name: Atribui variáveis de ambiente para realizar os uploads
+      - name: Atribui variaveis de ambiente para realizar os uploads
         id: vars
         run: |
           echo "branch_name=${{ steps.extract_branch.outputs.branch }}" >> $GITHUB_OUTPUT
-          echo "project_version=$(cat .version)" >> $GITHUB_OUTPUT
+          echo "release_timestamp=$(date +%s)" >> $GITHUB_OUTPUT
+          echo "project_version=$(cat .version 2>/dev/null || echo '0.0.0')" >> $GITHUB_OUTPUT
           echo "sha=${GITHUB_SHA}" >> $GITHUB_OUTPUT
           echo "repo_name=${GITHUB_REPOSITORY#*\/}" >> $GITHUB_OUTPUT
-          echo "ecr_registry=${{ secrets.AWS_DEVOPS_ECR }}" >> $GITHUB_OUTPUT
-          echo "ecr_tag=${{ secrets.AWS_DEVOPS_ECR }}/${GITHUB_REPOSITORY#*\/}:${{ steps.ecr-pretag.outputs.ecr_pretag }}${GITHUB_SHA}" >> $GITHUB_OUTPUT
-          echo "ecr_tag_latest=${{ secrets.AWS_DEVOPS_ECR }}/${GITHUB_REPOSITORY#*\/}:${{ steps.ecr-pretag.outputs.ecr_pretag }}latest" >> $GITHUB_OUTPUT
-          echo "ecr_tag_latest_escaped=${{ secrets.AWS_DEVOPS_ECR }}\/${GITHUB_REPOSITORY#*\/}:${{ steps.ecr-pretag.outputs.ecr_pretag }}${GITHUB_SHA}" >> $GITHUB_OUTPUT
-      - name: Configura o arquivo .env estático de acordo com o ambiente
+          echo "ecr_registry=${{ steps.login-ecr.outputs.registry }}" >> $GITHUB_OUTPUT
+          echo "ecr_tag=${{ steps.login-ecr.outputs.registry }}/${GITHUB_REPOSITORY#*\/}:dev-${GITHUB_SHA}" >> $GITHUB_OUTPUT
+          echo "ecr_tag_latest=${{ steps.login-ecr.outputs.registry }}/${GITHUB_REPOSITORY#*\/}:dev-latest" >> $GITHUB_OUTPUT
+      - name: Configura o arquivo .env estatico de acordo com o ambiente
         if: ${{ inputs.envfile_to_env != 'false' }}
         run: |
           mv ${{ inputs.envfile_to_env }} ${{ inputs.app_location }}.env
           rm ${{ inputs.app_location }}.env.*
-      - name: Constrói a imagem e faz upload para o AWS ECR
+      - name: Constroi a imagem e faz upload para o AWS ECR (us-east-1)
         uses: docker/build-push-action@v6
         with:
           context: ${{ inputs.dockerfile_location }}
@@ -112,33 +92,173 @@ jobs:
       - name: Configura as credenciais da AWS (Dev)
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          aws-region: ${{ secrets.AWS_DEV_REGION }}
-          role-to-assume: ${{ secrets.AWS_DEV_ROLE_NAME }}
-      - name: Instala e configura o kubeclt
-        run: |
-          aws eks update-kubeconfig --name ${{ secrets.AWS_DEV_CLUSTER_NAME }} --region ${{ secrets.AWS_DEV_REGION }}
-      - name: Checkout do repositório de templates
+          aws-region: us-east-1
+          role-to-assume: ${{ secrets.AWS_FARGATE_DEV_ROLE_NAME }}
+      - name: Checkout do repositorio de templates
         uses: actions/checkout@master
         with:
           repository: ${{ vars.EKS_TEMPLATES_REPO }}
           path: "target"
           token: ${{ secrets.EKS_TEMPLATES_CHECKOUT_PAT }}
-      - name: Resolve template correspondente à aplicação
-        id: template
+      - name: Instala dependencias Python para preprocess
         run: |
-          if test -f "target/services/${{ steps.vars.outputs.repo_name }}/template-dev.yml"; then
-            echo "eks_template=target/services/${{ steps.vars.outputs.repo_name }}/template-dev.yml" >> $GITHUB_OUTPUT
-            echo "eks_template_result=tmp/template-dev.yml" >> $GITHUB_OUTPUT
-          else
-            echo "eks_template=target/services/template.yml" >> $GITHUB_OUTPUT
-            echo "eks_template_result=tmp/template.yml" >> $GITHUB_OUTPUT
-          fi
-      - name: Aplica o template no K8S
-        if: success() || failure()
+          python3 -m pip install --quiet pyyaml
+      - name: Coleta SSM (valores /common/* + nomes globais para orphan filter)
+        env:
+          AWS_RETRY_MODE: adaptive
+          AWS_MAX_ATTEMPTS: "12"
         run: |
-          ./target/bin/ytt -f ${{ steps.template.outputs.eks_template }} -f target/services/defaults.dev.yml -f target/services/${{ steps.vars.outputs.repo_name }}/values.dev.yml --output-files tmp/
-          sed -i '/^\([[:space:]]*image: *\).*/s//\1${{ steps.vars.outputs.ecr_tag_latest_escaped }}/;' ${{ steps.template.outputs.eks_template_result }}
-          kubectl apply -f ${{ steps.template.outputs.eks_template_result }}
+          # Valores decifrados de /common/* (necessario para gerar env file)
+          : > /tmp/common-values.json
+          echo "[]" > /tmp/common-values.json
+          NEXT=""
+          PAGE=0
+          ACCUM="[]"
+          while : ; do
+            if [ -z "$NEXT" ]; then
+              OUT=$(aws ssm get-parameters-by-path --path /common --recursive --with-decryption --max-results 10)
+            else
+              OUT=$(aws ssm get-parameters-by-path --path /common --recursive --with-decryption --max-results 10 --next-token "$NEXT")
+            fi
+            ACCUM=$(echo "$ACCUM" "$OUT" | jq -s '.[0] + (.[1].Parameters // [])')
+            NEXT=$(echo "$OUT" | jq -r '.NextToken // empty')
+            PAGE=$((PAGE+1))
+            [ -z "$NEXT" ] && break
+            [ "$PAGE" -ge 500 ] && { echo "ERRO: paginacao /common excedeu 500 paginas"; exit 1; }
+            sleep 0.3
+          done
+          echo "$ACCUM" > /tmp/common-values.json
+          echo "common SSM values: $(jq 'length' /tmp/common-values.json)"
+
+          # Nomes de SSM globais (filtro orphans)
+          : > /tmp/ssm-dev-real.txt
+          NEXT=""
+          while : ; do
+            if [ -z "$NEXT" ]; then
+              OUT=$(aws ssm describe-parameters --max-results 50)
+            else
+              OUT=$(aws ssm describe-parameters --max-results 50 --next-token "$NEXT")
+            fi
+            echo "$OUT" | jq -r '.Parameters[].Name' >> /tmp/ssm-dev-real.txt
+            NEXT=$(echo "$OUT" | jq -r '.NextToken // empty')
+            [ -z "$NEXT" ] && break
+            sleep 0.3
+          done
+          sort -u /tmp/ssm-dev-real.txt -o /tmp/ssm-dev-real.txt
+          echo "ssm_real total: $(wc -l < /tmp/ssm-dev-real.txt)"
+
+      - name: Gera /tmp/common.env (envs.dev.yml secretKey -> valor SSM) e upload S3
+        id: envfile
+        env:
+          BUCKET: qflash-dev-fargate-envfiles
+        run: |
+          python3 <<'PYEOF'
+          import yaml, json, re
+          with open("target/services/envs.dev.yml") as f:
+              lines = [l for l in f if not l.lstrip().startswith("#@")]
+          d = yaml.safe_load("".join(lines))
+          items = d.get("spec",{}).get("data",[])
+
+          values = {p["Name"]: p["Value"] for p in json.load(open("/tmp/common-values.json"))}
+
+          # Para o env file: usa secretKey (nome esperado pela app) e valor de remoteRef.key
+          # ECS env file format: VAR=VALUE, uma por linha. Sem aspas (sao literais).
+          # Pula valores com newline (formato nao suporta multiline)
+          lines_out = []
+          skipped = []
+          for it in items:
+              key = it["remoteRef"]["key"]
+              name = it["secretKey"]
+              if not key.startswith("/common/"):
+                  continue  # Apenas /common/ vai para env file
+              v = values.get(key)
+              if v is None:
+                  skipped.append((name, key, "missing-ssm"))
+                  continue
+              if "\n" in v or "\r" in v:
+                  skipped.append((name, key, "multiline"))
+                  continue
+              if v == "":
+                  skipped.append((name, key, "empty"))
+                  continue
+              lines_out.append(f"{name}={v}")
+
+          with open("/tmp/common.env","w") as fp:
+              fp.write("\n".join(lines_out) + "\n")
+          print(f"common.env: {len(lines_out)} vars escritas, {len(skipped)} puladas")
+          for s in skipped:
+              print(f"  SKIP: {s[0]} ({s[1]}) reason={s[2]}")
+          PYEOF
+          size=$(wc -c < /tmp/common.env)
+          echo "common.env size: $size bytes"
+          aws s3 cp /tmp/common.env "s3://$BUCKET/common.env" --no-progress
+          ENVFILE_ARN="arn:aws:s3:::$BUCKET/common.env"
+          echo "envfile_arn=$ENVFILE_ARN" >> "$GITHUB_OUTPUT"
+          echo "ENVFILE_ARN=$ENVFILE_ARN"
+      - name: Preprocessa envs.dev.yml + ssm_real para ytt data values
+        run: |
+          python3 <<'PYEOF'
+          import yaml
+          # envs_common
+          with open("target/services/envs.dev.yml") as f:
+              lines = [l for l in f if not l.lstrip().startswith("#@")]
+          d = yaml.safe_load("".join(lines))
+          out_envs = {"envs_common": [
+              {"secretKey": i["secretKey"], "remoteRef": {"key": i["remoteRef"]["key"]}}
+              for i in d.get("spec",{}).get("data",[])
+          ]}
+          with open("/tmp/envs_common_data.yml","w") as fp:
+              fp.write("#@data/values\n#@overlay/match-child-defaults missing_ok=True\n---\n")
+              fp.write(yaml.dump(out_envs, default_flow_style=False))
+          # ssm_real
+          with open("/tmp/ssm-dev-real.txt") as fp:
+              paths = [l.strip() for l in fp if l.strip()]
+          with open("/tmp/ssm_real_data.yml","w") as fp:
+              fp.write("#@data/values\n#@overlay/match-child-defaults missing_ok=True\n---\nssm_real:\n")
+              for p in paths:
+                  fp.write(f"- {p}\n")
+          print(f"envs_common: {len(out_envs['envs_common'])}, ssm_real: {len(paths)}")
+          PYEOF
+      - name: Renderiza Task Definition via ytt
+        id: render-td
+        run: |
+          chmod +x target/bin/ytt
+          target/bin/ytt \
+            -f target/services/fargate-helpers.lib.yml \
+            -f target/services/fargate-template.yml \
+            -f target/services/defaults.fargate-dev.yml \
+            -f target/services/${{ steps.vars.outputs.repo_name }}/values.dev.yml \
+            -f /tmp/envs_common_data.yml \
+            -f /tmp/ssm_real_data.yml \
+            --data-value image_uri="${{ steps.vars.outputs.ecr_tag }}" \
+            --data-value envfile_arn="${{ steps.envfile.outputs.envfile_arn }}" \
+            > /tmp/td.yaml
+          python3 -c "import yaml,json; d=yaml.safe_load(open('/tmp/td.yaml')); json.dump(d, open('/tmp/td.json','w'))"
+          echo "Task Definition tamanho: $(wc -c < /tmp/td.json) bytes (limite 65536)"
+          echo "Secrets: $(python3 -c "import json; print(len(json.load(open('/tmp/td.json'))['containerDefinitions'][0].get('secrets',[])))")"
+      - name: Register Task Definition
+        id: reg-td
+        run: |
+          NEW_ARN=$(aws ecs register-task-definition --cli-input-json file:///tmp/td.json \
+            --query 'taskDefinition.taskDefinitionArn' --output text)
+          echo "td_arn=$NEW_ARN" >> $GITHUB_OUTPUT
+          echo "Nova revisao registrada: $NEW_ARN"
+      - name: Update ECS Service
+        run: |
+          aws ecs update-service \
+            --cluster qflash-dev-fargate \
+            --service "${{ steps.vars.outputs.repo_name }}" \
+            --task-definition "${{ steps.reg-td.outputs.td_arn }}" \
+            --force-new-deployment \
+            > /dev/null
+          echo "Service atualizado: ${{ steps.vars.outputs.repo_name }}"
+      - name: Aguarda services-stable
+        timeout-minutes: 8
+        run: |
+          aws ecs wait services-stable \
+            --cluster qflash-dev-fargate \
+            --services "${{ steps.vars.outputs.repo_name }}"
+          echo "Service estavel"
       - name: Purge old cache
         uses: MyAlbum/purge-cache@v2
         with:
