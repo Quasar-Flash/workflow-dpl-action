@@ -25,6 +25,11 @@ on:
         default: "app/"
         required: false
         type: string
+      ecs_service_name:
+        description: "Nome do ECS service a atualizar, se diferente do nome do repositorio (ex: variante -alb-canario)"
+        default: ""
+        required: false
+        type: string
     secrets:
       AWS_FARGATE_DEVOPS_ROLE_NAME:
         required: true
@@ -243,19 +248,23 @@ jobs:
           echo "Nova revisao registrada: $NEW_ARN"
       - name: Update ECS Service
         run: |
+          SERVICE_NAME="${{ inputs.ecs_service_name }}"
+          if [ -z "$SERVICE_NAME" ]; then SERVICE_NAME="${{ steps.vars.outputs.repo_name }}"; fi
           aws ecs update-service \
             --cluster qflash-prd-fargate \
-            --service "${{ steps.vars.outputs.repo_name }}" \
+            --service "$SERVICE_NAME" \
             --task-definition "${{ steps.reg-td.outputs.td_arn }}" \
             --force-new-deployment \
             > /dev/null
-          echo "Service atualizado: ${{ steps.vars.outputs.repo_name }}"
+          echo "Service atualizado: $SERVICE_NAME"
       - name: Aguarda services-stable
         timeout-minutes: 8
         run: |
+          SERVICE_NAME="${{ inputs.ecs_service_name }}"
+          if [ -z "$SERVICE_NAME" ]; then SERVICE_NAME="${{ steps.vars.outputs.repo_name }}"; fi
           aws ecs wait services-stable \
             --cluster qflash-prd-fargate \
-            --services "${{ steps.vars.outputs.repo_name }}"
+            --services "$SERVICE_NAME"
           echo "Service estavel"
       - name: Cria a release no Github para a versao
         if: ${{ inputs.release == 'true' }}
